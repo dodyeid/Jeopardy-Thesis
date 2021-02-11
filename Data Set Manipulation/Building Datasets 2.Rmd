@@ -1,0 +1,284 @@
+---
+title: "Thesis Summary Statistics Analysis"
+author: "Dody Eid"
+date: "10/19/2019"
+output:
+  html_document: default 
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+setwd("C:\\Users\\dodye\\Desktop\\Senior Thesis R\\senior_thesis")
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(psych)
+library(stargazer)
+library(psych)
+library(gtable)
+library(gtsummary)
+library(gender)
+# install.packages("genderdata", repos = "http://packages.ropensci.org", type = "source")
+# library(kable)
+# Info on gender package found at: https://ropensci.org/tutorials/gender_tutorial/
+
+```
+
+```{r lock game set up, include=FALSE}
+
+master_raw <- read_rds("master_raw") %>% mutate(p1_place_hold = P1_full_desc, P1_full_desc = P3_full_desc, P3_full_desc = p1_place_hold) %>% select(-p1_place_hold)
+
+## reshape data set to have three rows per game
+master_raw_long <- master_raw %>% gather(Player,Full_desc,P1_full_desc:P3_full_desc)
+
+master_raw_long_2 <- master_raw_long %>% 
+  mutate(Player_coryat = ifelse(Player == "P1_full_desc",P1_coryat,
+                                ifelse(Player == "P2_full_desc",P2_coryat,
+                                       P3_coryat)),
+         Player_dj_score = ifelse(Player == "P1_full_desc",P1_dj_score,
+                                ifelse(Player == "P2_full_desc",P2_dj_score,
+                                       P3_dj_score)),
+         Player_final_score = ifelse(Player == "P1_full_desc",P1_final_score,
+                                ifelse(Player == "P2_full_desc",P2_final_score,
+                                       P3_final_score)),
+         Player_correct = ifelse(Player == "P1_full_desc",P1_correct,
+                                ifelse(Player == "P2_full_desc",P2_correct,
+                                       P3_correct)),
+         Player_incorrect = ifelse(Player == "P1_full_desc",P1_incorrect,
+                                ifelse(Player == "P2_full_desc",P2_incorrect,
+                                       P3_incorrect)),
+         Player_gotit = ifelse(Player == "P1_full_desc",P1_gotit,
+                                ifelse(Player == "P2_full_desc",P2_gotit,
+                                       P3_gotit)),
+         Player_wager = ifelse(Player == "P1_full_desc",P1_wager,
+                                ifelse(Player == "P2_full_desc",P2_wager,
+                                       P3_wager)),
+         Player_place_dj = ifelse(Player == "P1_full_desc",P1_place_dj,
+                                ifelse(Player == "P2_full_desc",P2_place_dj,
+                                       P3_place_dj)),
+         ## now we put in the other players' info
+         ## I follow the chart drawn in my notebook. photo on your iphone
+         Player2_coryat = ifelse(Player == "P1_full_desc",P2_coryat,
+                                ifelse(Player == "P2_full_desc",P1_coryat,
+                                       P2_coryat)),
+         Player2_dj_score = ifelse(Player == "P1_full_desc",P2_dj_score,
+                                ifelse(Player == "P2_full_desc",P1_dj_score,
+                                       P2_dj_score)),
+         Player2_final_score = ifelse(Player == "P1_full_desc",P2_final_score,
+                                ifelse(Player == "P2_full_desc",P1_final_score,
+                                       P2_final_score)),
+         Player2_correct = ifelse(Player == "P1_full_desc",P2_correct,
+                                ifelse(Player == "P2_full_desc",P1_correct,
+                                       P2_correct)),
+         Player2_incorrect = ifelse(Player == "P1_full_desc",P2_incorrect,
+                                ifelse(Player == "P2_full_desc",P1_incorrect,
+                                       P2_incorrect)),
+         Player2_gotit = ifelse(Player == "P1_full_desc",P2_gotit,
+                                ifelse(Player == "P2_full_desc",P1_gotit,
+                                       P2_gotit)),
+         Player2_wager = ifelse(Player == "P1_full_desc",P2_wager,
+                                ifelse(Player == "P2_full_desc",P1_wager,
+                                       P2_wager)),
+         Player2_place_dj = ifelse(Player == "P1_full_desc",P2_place_dj,
+                                ifelse(Player == "P2_full_desc",P1_place_dj,
+                                       P2_place_dj)),
+         ##and now the second other player
+         Player3_coryat = ifelse(Player == "P1_full_desc",P3_coryat,
+                                ifelse(Player == "P2_full_desc",P3_coryat,
+                                       P1_coryat)),
+         Player3_dj_score = ifelse(Player == "P1_full_desc",P3_dj_score,
+                                ifelse(Player == "P2_full_desc",P3_dj_score,
+                                       P1_dj_score)),
+         Player3_final_score = ifelse(Player == "P1_full_desc",P3_final_score,
+                                ifelse(Player == "P2_full_desc",P3_final_score,
+                                       P1_final_score)),
+         Player3_correct = ifelse(Player == "P1_full_desc",P3_correct,
+                                ifelse(Player == "P2_full_desc",P3_correct,
+                                       P1_correct)),
+         Player3_incorrect = ifelse(Player == "P1_full_desc",P3_incorrect,
+                                ifelse(Player == "P2_full_desc",P3_incorrect,
+                                       P1_incorrect)),
+         Player3_gotit = ifelse(Player == "P1_full_desc",P3_gotit,
+                                ifelse(Player == "P2_full_desc",P3_gotit,
+                                       P1_gotit)),
+         Player3_wager = ifelse(Player == "P1_full_desc",P3_wager,
+                                ifelse(Player == "P2_full_desc",P3_wager,
+                                       P1_wager)),
+         Player3_place_dj = ifelse(Player == "P1_full_desc",P3_place_dj,
+                                ifelse(Player == "P2_full_desc",P3_place_dj,
+                                       P1_place_dj))
+         )
+```
+
+
+## THE PROBABILITY MODEL
+```{r prob model}
+for (i in 1:5) {
+  logname <- paste0("log_reg_",as.character(i))
+  if (i == 1) {
+assign(logname,glm(Player_gotit ~
+         Player_correct +
+         Player2_correct +
+         Player3_correct, data = master_raw_long_2, family = binomial))
+
+
+saveRDS(get(logname), paste0("log_reg_",as.character(i)))
+  }
+  if (i == 2) {
+assign(logname,glm(Player_gotit ~
+         Player_correct +
+         Player_incorrect +
+         Player2_correct +
+         Player2_incorrect +
+         Player3_correct +
+         Player3_incorrect, data = master_raw_long_2, family = binomial))
+
+saveRDS(get(logname), paste0("log_reg_",as.character(i)))
+  }
+  if (i == 3) {
+assign(logname,glm(Player_gotit ~ Player_coryat+
+         Player_correct +
+         Player_incorrect +
+           Player2_coryat + 
+         Player2_correct +
+         Player2_incorrect+
+           Player3_coryat +
+         Player3_correct +
+         Player3_incorrect, data = master_raw_long_2, family = binomial))
+
+
+saveRDS(get(logname), paste0("log_reg_",as.character(i)))
+  }
+  if (i == 4) {
+assign(logname,glm(Player_gotit ~ Player_coryat + 
+         Player_dj_score +
+         Player_correct +
+         Player_incorrect +
+           Player2_coryat + 
+         Player2_dj_score +
+         Player2_correct +
+         Player2_incorrect +
+           Player3_coryat + 
+         Player3_dj_score +
+         Player3_correct +
+         Player3_incorrect, data = master_raw_long_2, family = binomial))
+
+
+saveRDS(get(logname), paste0("log_reg_",as.character(i)))
+  }
+  if (i == 5) {
+assign(logname,glm(Player_gotit ~ Player_coryat + 
+         Player_dj_score +
+         Player_correct +
+         Player_incorrect +
+         Player_place_dj +
+           Player2_coryat + 
+         Player2_dj_score +
+         Player2_correct +
+         Player2_incorrect +
+         Player2_place_dj +
+           Player3_coryat + 
+         Player3_dj_score +
+         Player3_correct +
+         Player3_incorrect +
+         Player3_place_dj, data = master_raw_long_2, family = binomial))
+
+
+saveRDS(get(logname), paste0("log_reg_",as.character(i)))
+  }
+}
+## THE BELOW DATA SET IS LONG, WITH PREDICTED P OF GETTING FINAL J CORRECT
+## log_reg_1 uses amount player got correct "Player_p1"
+## 2 uses correct and incorrect
+## 3 adds in coryat
+## 4 adds in score going into FJ
+## 5 throws in place (but this is just written "Player_p")
+master_raw_long_3 <- master_raw_long_2 %>% 
+  mutate(Player_p_new = predict(log_reg_5,master_raw_long_2,type = "response"),
+         Player_p1 = predict(log_reg_1,master_raw_long_2,type = "response"),
+         Player_p2 = predict(log_reg_2,master_raw_long_2,type = "response"),
+         Player_p3 = predict(log_reg_3,master_raw_long_2,type = "response"),
+         Player_p4 = predict(log_reg_4,master_raw_long_2,type = "response"),
+         Player_p5 = predict(log_reg_5,master_raw_long_2,type = "response"), ##equals Player p new
+         )
+
+
+```
+
+
+
+
+
+
+
+
+``` {r gender}
+## now need to assign gender
+## standard gender package in R. Documentation is online.
+master_raw_long_4 <- master_raw_long_3 %>% 
+  mutate(Player_name = ifelse(Player == "P1_full_desc",P1_name,
+                                ifelse(Player == "P2_full_desc",P2_name,
+                                       P3_name)))
+
+## we need to build a better gender function. One that gives NA instead of empty
+probmale <- function(name) {
+  return(as.numeric(ifelse(is_empty(gender(name)[[2]]),NA,gender(name)[[2]])))
+}
+## the above function gives the probability a given name is male.
+
+## I incorporate this into our long data set.
+# master_raw_long_5 <- master_raw_long_4 %>% rowwise() %>%
+#   mutate(Player_pmale = probmale(Player_name))
+# saveRDS(master_raw_long_5, "longraw")
+
+## to avoid rerunning gender, I do this:
+master_raw_long_5 <- read_rds("longraw")
+master_raw_long_5 <- master_raw_long_5 %>% 
+  select(-c(96:110))
+##need to manually add new probabilities if not running gender. Comment this out when running gender again
+new_probs <- master_raw_long_3 %>% 
+  select(Player_p_new,Player_p1,Player_p2,Player_p3,Player_p4,Player_p5)
+master_raw_long_5 <- cbind(master_raw_long_5,new_probs)
+
+##add a gender variable. 95% chance is gender cutoff
+master_raw_long_6 <- master_raw_long_5 %>% 
+  mutate(male = ifelse(Player_pmale >= 0.95,1,
+                       ifelse(Player_pmale <= 0.05,0,NA)))
+
+## add a risk aversion alpha for the long format. Note that this alpha is meaningless for non-lock game situations.
+
+master_raw_long_7 <- master_raw_long_6 %>% 
+  mutate(Player_alpha = ifelse(Player_wager != 0, (log(Player_p/(1-Player_p)))/(2*Player_wager),
+                               0.000066)) #metricks finding is used when wager is 0. might delete late
+
+## add a variable that has each wager doubled. This is used in metrick's logistic regression.
+master_raw_long_8 <- master_raw_long_7 %>% 
+  mutate(Player_wager_doubled = Player_wager*2)
+
+
+saveRDS(master_raw_long_8, file = "longraw")
+
+## Let's put gender on the wide dataset
+# master_raw_gendered <- master_raw %>% rowwise() %>% 
+#   mutate(P1_pmale = probmale(P1_name),
+#          P2_pmale = probmale(P2_name),
+#          P3_pmale = probmale(P3_name))
+
+## avoid gender run
+master_raw_gendered <- read_rds("master_raw_gendered")
+
+## quick touch up. Adding djfirst name for each row.
+master_raw_gendered_2 <- master_raw_gendered %>% 
+  mutate(djfirst = ifelse(djfirst_place_dj_score == P1_dj_score, P1_name,
+                          ifelse(djfirst_place_dj_score == P2_dj_score, P2_name, P3_name)),
+         djfirst_pmale = ifelse(djfirst == P1_name, P1_pmale,
+                                ifelse(djfirst == P2_name, P2_pmale, P3_pmale)))
+
+## add alpha for each player in the wide format.
+## too difficult to do. Look into it.
+saveRDS(master_raw_gendered_2, file = "master_raw_gendered")
+
+```
+
+

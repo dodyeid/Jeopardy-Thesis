@@ -1,0 +1,62 @@
+---
+title: "Risk and Overconfidence Dataset Build"
+author: "Dody Eid"
+date: "2/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# install.packages("genderdata", repos = "http://packages.ropensci.org", type = "source")
+# install.packages("extrafont")
+# library(extrafont)
+# font_import()
+# loadfonts(device="win")       #Register fonts for Windows bitmap output
+# fonts()   
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(psych)
+library(stargazer)
+library(psych)
+library(gtable)
+library(gtsummary)
+library(gender)
+
+# library(kable)
+# Info on gender package found at: https://ropensci.org/tutorials/gender_tutorial/
+setwd("C:\\Users\\dodye\\Desktop\\Senior Thesis R\\senior_thesis")
+master_raw <- read_rds("master_raw")
+master_raw_gendered <- read_rds("master_raw_gendered")
+longraw <- read_rds("longraw")
+```
+
+
+```{r lockgames datasets}
+
+## Let's look at all lock games.
+lock_games_long_all <- longraw %>% filter(lock == 1) 
+lock_games_wide_all <- master_raw_gendered %>% filter(lock==1)
+
+## TO COMPLICATE ANALYSIS : Filter out irrational games. Filter back in lock-tie games pre nov 2014. Or, count how many of these games exist and make a note of it in the thesis.
+
+## Now split by gender.
+longraw_male <- longraw %>% filter(Player_pmale >= 0.95)
+longraw_female <- longraw %>% filter(Player_pmale <= 0.05)
+
+## Split by gender, but only look at lock games.
+lock_games_long_male <- lock_games_long_all %>% filter(Player_pmale >= 0.95)
+lock_games_long_female <- lock_games_long_all %>% filter(Player_pmale <= 0.05)
+
+## lock games where leader is male
+lock_games_wide_male <- master_raw_gendered %>% filter(lock == 1 & djfirst_pmale >= 0.95)
+## lock games where leader is female
+lock_games_wide_female <- master_raw_gendered %>% filter(lock == 1 & djfirst_pmale <= 0.05)
+```
+
+```{r}
+## Need to add Player ID by using player description?
+lock_games_long_all2 <- lock_games_long_all %>% 
+  mutate(Player_streak = ifelse(Player_name == winner_name, streak,NA))
+```
+
