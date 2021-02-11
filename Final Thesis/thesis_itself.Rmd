@@ -1,0 +1,887 @@
+---
+title:
+- | 
+  ```{=latex}
+  Gender Differences in Risk Preference: \\
+  A Case Study in \textit{Jeopardy!}
+  ```
+subtitle:
+- | 
+  ```{=latex}
+  \leavevmode \\[\baselineskip] \leavevmode \\[\baselineskip] Diab Tony Eid
+  \leavevmode \\[\baselineskip] \leavevmode \\[\baselineskip] \leavevmode \\[\baselineskip]
+  \centerline{Presented to the Department of Economics}
+  \centerline{in partial fulfillment of the requirements}
+  \centerline{for a Bachelor of Arts degree with Honors}
+  \leavevmode \\[\baselineskip] \leavevmode \\[\baselineskip] \leavevmode \\[\baselineskip]
+  \centerline{Harvard College}
+  \centerline{Cambridge, Massachusetts}
+  \centerline{March 19, 2020}
+  ```
+output:
+  pdf_document: 
+    fig_caption: true
+    keep_tex: true
+    number_sections: true
+    includes:
+      before_body: before_body.tex
+geometry: "left=1.5in, right=1in, top=1in, bottom=1in"
+bibliography: bibliography.bib
+documentclass: article
+header-includes:
+- |
+  ```{=latex}
+  \usepackage{dcolumn}
+  \usepackage{setspace}
+  \usepackage{rotating}
+  \setlength{\tabcolsep}{1pt}
+  \doublespacing
+  \newpage
+  ```
+indent: true
+---
+
+```{r setup, include=FALSE}
+library(Cairo)
+knitr::opts_chunk$set(echo = FALSE,dev="CairoPDF")
+setwd("C:\\Users\\dodye\\Desktop\\Senior Thesis R\\senior_thesis")
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(psych)
+library(stargazer)
+library(psych)
+library(gtable)
+library(gtsummary)
+library(gender)
+library(bookdown)
+library(texreg)
+library(gtsummary)
+library(extrafont)
+library(minpack.lm)
+library(scales)
+# font_import()
+loadfonts(device="win", quiet = TRUE)
+# install.packages("genderdata", repos = "http://packages.ropensci.org", type = "source")
+# library(kable)
+# Info on gender package found at: https://ropensci.org/tutorials/gender_tutorial/
+
+# The below option gets rid of scientific notation
+# options(scipen = 999)
+trunc_number_n_decimals <- function(numberToTrunc, nDecimals){
+numberToTrunc <- numberToTrunc + (10^-(nDecimals+5))
+splitNumber <- strsplit(x=format(numberToTrunc, digits=20, format=f), split="\\.")[[1]]
+  decimalPartTrunc <- substr(x=splitNumber[2], start=1, stop=nDecimals)
+  truncatedNumber <- as.numeric(paste0(splitNumber[1], ".", decimalPartTrunc))
+  return(truncatedNumber)
+}
+#read in 2 main datasets
+master_raw <- read_rds("master_raw")
+longraw <- read_rds("longraw")
+
+longraw_removenagender <- longraw %>% filter(!is.na(male))
+longraw_male <- longraw %>% filter(male==1)
+longraw_female <- longraw %>% filter(male==0)
+lock_games_wide_all <- read_rds("lock_games_wide_all")
+lock_games_tie <- master_raw %>% filter(djfirst_place_dj_score == 2*djsecond_place_dj_score)
+lock_games_wide_female <- read_rds("lock_games_wide_female")
+lock_games_wide_male <- read_rds("lock_games_wide_male")
+lock_games_wager_is_maxed <- master_raw %>% 
+  filter(djfirst_place_wager ==  djfirst_place_dj_score - 2*djsecond_place_dj_score - 1)
+lock_games_wager_is_mind <- lock_games_wide_all %>% 
+  filter(djfirst_place_wager == 0)
+met_model_ttest<-read_rds("met_model_ttest")
+lock_games_long_all <- read_rds("lock_games_long_all")
+lock_games_long_male <- read_rds("lock_games_long_male")
+lock_games_long_female <- read_rds("lock_games_long_female")
+lock_games_long_all_rational <- read_rds("lock_games_long_all_rational")
+
+table_1 <- read_rds("table_1") ## lock games summary stats
+table_2 <- read_rds("table_2") ## all games summary stats
+table_3 <- read_rds("table_3") ## all male players summary stats
+table_4 <- read_rds("table_4") ## all female players summary stats
+table_5 <- read_rds("table_5") ## lock games where leader is male summary stats
+table_6 <- read_rds("table_6") ## lock games where leader is female summary stats
+
+basic_risk_reg <- read_rds("basic_risk_reg")
+
+## Vars load in ##
+#metrick rep
+metnoint_estimate_all <- read_rds('metnoint_estimate_all')
+metnoint_se_all <- read_rds("metnoint_se_all")
+met_estimate_all <- read_rds("met_estimate_all")
+met_se_all <- read_rds("met_se_all")
+met_freeint_estimate_all <- read_rds("met_freeint_estimate_all")
+met_freeint_estimate_se_all <- read_rds("met_freeint_estimate_se_all")
+met_own_estimate <- read_rds("met_own_estimate")
+met_own_se <- read_rds("met_own_se")
+met_own_int <- read_rds("met_own_int")
+met_own_int_se <- read_rds("met_own_int_se")
+metnoint_estimate_male <- read_rds("metnoint_estimate_male")
+metnoint_se_male <- read_rds("metnoint_se_male")
+metnoint_estimate_female <- read_rds("metnoint_estimate_female")
+metnoint_se_female <- read_rds("metnoint_se_female")
+met_estimate_male <- read_rds("met_estimate_male")
+met_se_male <- read_rds("met_se_male")
+met_estimate_female <- read_rds("met_estimate_female")
+met_se_female <- read_rds("met_se_female")
+met_model_diff_in_diff <- read_rds("met_model_diff_in_diff")
+
+## Logsitic model load in
+met_model_noint_all <- read_rds("met_model_noint_all")
+met_model_all <- read_rds("met_model_all")
+#gendered
+met_model_noint_male <- read_rds("met_model_noint_male")
+met_model_noint_female <- read_rds("met_model_noint_female")
+met_model_male <- read_rds("met_model_male")
+met_model_female <- read_rds("met_model_female")
+
+male_conf_error <- read_rds("male_conf_error")
+female_conf_error <- read_rds("female_conf_error")
+## Continues alpha table
+cont_coef_tbl <- read_rds("cont_coef_tbl")
+
+## The plot
+aversion_plot <- read_rds("aversion_plot")
+
+##ttests
+ttest_first_table <- read_rds("ttest_first_table")
+
+raw <- read.csv("Jeopardy Games.csv")
+raw_nona <- read_rds("raw_nona")
+raw_nona_notour <- read_rds("raw_nona_notour")
+```
+
+```{r tables, include = FALSE}
+# TABLE 1
+# ```{r results = 'asis'}
+# ## TABLE 1
+# ## Move this whole code chunk to thesis doc. Save the dataset used to WD.
+# 
+# stargazer(as.data.frame(subset(table_1[c("djfirst_place_dj_score","djsecond_place_dj_score","djfirst_place_wager","djfirst_gotit","djsecond_gotit","streak")])), type = "html", title = "Table 1: Summary Statistics for <em> Jeopardy! </em> Lock Game Situations", covariate.labels = c("Leader's Score", "Trailer's Score", "Leader's Wager", "Leader Got It?", "Trailer Got It?", "Streak"), notes = "\\parbox[t]{14cm}{This table displays summary statistics for lock game situations in the game show <em> Jeopardy! </em> Lock games  are situations when the leader going into Final Jeopardy! has more than double the score of the trailer.* These data were scraped from the J!Archive, accessible at www.j-archive.com.}", column.sep.width = "1pt", no.space = TRUE,summary.stat = c("mean", "sd","min","max"),align=TRUE,out="table1.html") 
+# 
+# ```
+# 
+# TABLE 2
+# ```{r results = 'asis'}
+# ## TABLE 2
+# 
+# stargazer(as.data.frame(subset(table_2[c("Player_dj_score","Player_wager","Player_gotit","Player_final_score","Player_coryat","male")])), type = "html", title = "Table 2: Summary Statistics for all <em> Jeopardy! </em> Players", covariate.labels = c("Score Going into Final Jeopardy!", "Wager", "Correct", "Final Score", "Final Coryat", "Male"), notes = "\\parbox[t]{14cm}{This table displays summary statistics for players in the game show <em> Jeopardy! </em>. These data were scraped from the J!Archive, accessible at www.j-archive.com.}", column.sep.width = "1pt", no.space = TRUE,summary.stat = c("mean", "sd","min","max"),align=TRUE,out="table2.html") 
+# 
+# ```
+# 
+# TABLE 3
+# ```{r results = 'asis'}
+# ## TABLE 3
+# 
+# stargazer(as.data.frame(subset(table_3[c("Player_dj_score","Player_wager","Player_gotit","Player_final_score","Player_coryat")])), type = "html", title = "Table 3: Summary Statistics for all Male <em> Jeopardy! </em> Players", covariate.labels = c("Score Going into Final Jeopardy!", "Wager", "Correct", "Final Score", "Final Coryat"), notes = "\\parbox[t]{14cm}{This table displays summary statistics for male players in the game show <em> Jeopardy! </em>. These data were scraped from the J!Archive, accessible at www.j-archive.com.}", column.sep.width = "1pt", no.space = TRUE,summary.stat = c("mean", "sd","min","max"),align=TRUE,out="table3.html") 
+# 
+# ```
+# 
+# TABLE 4
+# ```{r results = 'asis'}
+# ## TABLE 4
+# 
+# stargazer(as.data.frame(subset(table_4[c("Player_dj_score","Player_wager","Player_gotit","Player_final_score","Player_coryat")])), type = "html", title = "Table 4: Summary Statistics for all Female <em> Jeopardy! </em> Players", covariate.labels = c("Score Going into Final Jeopardy!", "Wager", "Correct", "Final Score", "Final Coryat"), notes = "\\parbox[t]{14cm}{This table displays summary statistics for female players in the game show <em> Jeopardy! </em>. These data were scraped from the J!Archive, accessible at www.j-archive.com.}", column.sep.width = "1pt", no.space = TRUE,summary.stat = c("mean", "sd","min","max"),align=TRUE,out="table4.html")
+# ```
+# 
+# TABLE 5
+# ```{r results = 'asis'}
+# ## TABLE 5
+# ## Move this whole code chunk to thesis doc. Save the dataset used to WD.
+# 
+# stargazer(as.data.frame(subset(table_5[c("djfirst_place_dj_score","djsecond_place_dj_score","djfirst_place_wager","djfirst_gotit","djsecond_gotit")])), type = "html", title = "Table 5: Summary Statistics for <em> Jeopardy! </em> Lock Game Situations When the Leader is Male", covariate.labels = c("Leader's Score", "Trailer's Score", "Leader's Wager", "Leader Got It?", "Trailer Got It?"), notes = "\\parbox[t]{14cm}{This table displays summary statistics for lock game situations when the leader is male. These data were scraped from the J!Archive, accessible at www.j-archive.com.}", column.sep.width = "1pt", no.space = TRUE,summary.stat = c("mean", "sd","min","max"),align=TRUE,out="table5.html") 
+# 
+# ```
+# 
+# TABLE 6
+# ```{r results = 'asis'}
+# ## TABLE 6
+# ## Move this whole code chunk to thesis doc. Save the dataset used to WD.
+# 
+# stargazer(as.data.frame(subset(table_6[c("djfirst_place_dj_score","djsecond_place_dj_score","djfirst_place_wager","djfirst_gotit","djsecond_gotit")])), type = "html", title = "Table 6: Summary Statistics for <em> Jeopardy! </em> Lock Game Situations When the Leader is Female", covariate.labels = c("Leader's Score", "Trailer's Score", "Leader's Wager", "Leader Got It?", "Trailer Got It?"), notes = "\\parbox[t]{14cm}{This table displays summary statistics for lock game situations when the leader is female. These data were scraped from the J!Archive, accessible at www.j-archive.com.}", column.sep.width = "1pt", no.space = TRUE,summary.stat = c("mean", "sd","min","max"),align=TRUE,out="table6.html") 
+# 
+# ```
+# 
+# TABLE 7
+# ```{r results = 'asis'}
+# stargazer(met_model_noint_all,met_model_all,
+#           met_model_noint_male,met_model_male,
+#           met_model_noint_female, met_model_female,
+#           type = "html",
+#           title = "Table 7: Risk Parameter Estimate for Lock Game Leaders",
+#           covariate.labels = c("Wager"),
+#           dep.var.labels = c("Answer Final Jeopardy! Correctly"),
+#           notes = "This table shows estimates for a coefficient of absolute risk aversion that best explains the decision making of lock game leaders on <em> Jeopardy! </em> assuming they follow exponential utility functions (See Metrick (1995) for the first iteration of this analysis). I regress wagers on whether or not a player answered Final Jeopardy! correctly to estimate a single risk parameter for the sample. Regression (1) forces the intercept term of the regression to be zero so as to better fit the model's utility specification, while regression (2) allows for a free intercept estimate. The estimate in regression (1) implies a coefficient of absolute risk aversion of 0.0000045638, while this estimate under regression (2) is 0.0000273003.",
+#           digits = 7,
+#           column.sep.width = "1pt",
+#           notes.align = "l",
+#           no.space = TRUE,
+#           out="table7.html") 
+# ```
+# 
+# TABLE 8
+# ```{r results = 'asis'}
+# ## TABLE 6
+# ## Move this whole code chunk to thesis doc. Save the dataset used to WD.
+# 
+# stargazer(as.data.frame(cont_coef_tbl), 
+#           summary = FALSE,
+#           type = "html", 
+#           title = "Table 8: Summary Statistics for Risk Coefficients in <em> Jeopardy!</em>",
+#           notes = "This table shows summary statistics for coefficients of absolute risk aversion (alpha) expressed by wagering decisions in <em>Jeopardy!</em> lock game situations. ",
+#           column.sep.width = "5pt",
+#           rownames = FALSE,
+#           style = "qje",
+#           digits = 7,
+#           out="table8.html")
+# ```
+```
+\newpage
+# Abstract {-}
+This paper examines high-stakes wagering on the game show _Jeopardy!_ to compare risk preferences between men and women. A prior analysis on _Jeopardy!_ by Andrew Metrick (1995) examines a dataset of 1,150 players to estimate a coefficient of absolute risk aversion expressed on the show with no comparison across gender. I note three shortcomings of Metrick's methodology, and I update his model to accurately compare risk preference across gender on a novel dataset consisting of 15,240 players. The first analysis of this paper finds men to wager slightly more as a fraction of their game income than women on the show, and the result is significant. However, a more refined model that takes into account utility, subjective probability, and overconfidence does not find enough evidence to suggest men and women exhibit different risk tolerances. 
+\newpage
+
+# Acknowledgements {-}
+This thesis would not have been possible without the help of many generous friends, family members, professors, and mentors. I would first like to express my deepest gratitude to my thesis advisor, Nathaniel Hendren, and to my seminar instructor, Judd Cramer, for their patience, suggestions, and assistance over the course of several months. Thank you both for helping make this project a reality. I would also like to express thanks to all my seminar peers for their valuable comments in class, especially to Sophia Campbell who suggested looking into gender on _Jeopardy!_; to Sam Stemper and David Kane for their help with R; to Cristopher Patvakanian for being a great roommate and providing lots of moral (and Latex) support; to Yasmin Luthra for her detailed draft commments; to Emery Liu and Raymond Lin for their math help; to Jeffrey Miron for his helpful comments; to Lan Luo for his data-scraping help; and to Larry Gu for his extraordinary help with R, Latex, and the math. I would also like to thank all my teachers past and present, my parents for their love and support, and God for always being by my side.
+
+\newpage
+\tableofcontents
+\newpage
+
+# Introduction
+
+It is commonly believed that men are more risk-seeking than women [@kay_2013]. Some argue this gap in risk preference explains gender disparities in occupation choice and, as a consequence, broader economic outcomes [@dohmen]. Others believe such gaps are attributable to institutional barriers [@euro] or some other variable that differs across gender [@blaukahn]. This paper contributes to the debate by examining wagers on the game show _Jeopardy!_ to compare risk profiles between men and women. I ultimately find little evidence to support the claim that risk preference differs significantly across gender.
+
+The game show environment provides abundant data to estimate risk attitudes, but prior literature in the field focuses on calculating specific risk parameters for small samples of people with no comparison across gender. @gertner, for example, examines betting on _Card Sharks_ to estimate a coefficient of constant absolute risk aversion (CARA) that best explains the decision making of individuals on the show. @metrick employs a similar methodology with wagers on _Jeopardy!_. This paper builds off of Metrick's model by correcting for its major shortcomings and introducing a comparison of risk tolerance across gender.
+
+Metrick examines situations known as "lock games." In a lock game, the leading player going into Final Jeopardy has more than double the score of the trailer. A lock game leader has a sure victory so long as he or she does not bet more than an amount that would put him or her at risk of being caught by the trailer. With victory assured, the leader is only worried about how much money he or she will take home. Assuming individuals follow exponential utility, wagers in lock games will express some level of constant absolute risk aversion. Metrick assesses wagers over a subset of games to calculate a single CARA coefficient without comparison across gender. His CARA coefficient estimate is $6.6 \times 10^{-5}$ with a standard error of $5.6 \times 10^{-5}$.
+
+The Metrick model serves as the foundation of this paper, but it has three main flaws. First, the nature of Final Jeopardy prevents players from making negative wagers, which introduces bias into the risk parameter estimation. Second, the model relies on a logistic regression that forces the intercept term to be zero, which the data might violate. Third, the model does not disentangle risk-seeking behavior from overconfidence on the show.^[This last shortcoming is mentioned by Metrick on page 245 of his paper.]  
+
+While the first flaw prevents meaningful conclusions regarding the level of risk tolerance a specific group of people might display on the show, it does not prevent relative comparisons of risk tolerance across gender. The second and third flaw can also be mitigated with an updated model and greater access to data. This paper adjusts the model, applies it to a dataset about 14 times as large, and introduces cross-gender risk comparison.
+
+The rest of the paper is organized as follows. Section 2 presents a review of the relevant literature and an explanation of the rules of _Jeopardy!_. Section 3 presents data and summary statistics for all games in _Jeopardy!_ history. Section 4 presents the analyses and Section 5 is the conclusion.
+
+# Background
+## Literature Review
+
+Prior research mostly supports the idea that women are less risk-seeking than men, although the question is by no means settled. @watson+mcnaughton find women to choose more conservative retirement investment strategies than men. Investing decisions more generally also exhibit this gap [See @sundensurrette; @olsencox; and @hinz for examples]. Moreover, @zinkhan find women less likely to take business risks than men.
+
+Lab studies do not paint a clear picture on whether men are more risk-seeking than women. @schubert find that, of five treatments, women are more risk-averse than men in two, more risk-seeking in one, and not significantly different from men in the other two. In another study by @holt, women are found to be more risk-averse than men when the stakes are low (a few dollars), but when the stakes are high (greater than ten dollars), there is not enough evidence to conclude women are more or less risk-seeking than men. Finally, @eckel+grossman find women to be more risk-averse than men when faced with a series of gamble choices.
+
+The main limitation of lab studies is the magnitude of the stakes: risking tens of dollars is incommensurate with the high-stakes decisions individuals must face in their day-to-day lives. Game shows, however, typically involve large gambles. For example, the average amount a player can wager in Final Jeopardy is about \$`r format(mean(longraw$Player_dj_score),big.mark=",",digits=0)`, and the mean wager is \$`r format(mean(longraw$Player_wager),big.mark=",",digits=0)`.^[These figures come directly from the dataset described in Section 3 and do not include non-regular season play.] These gambles provide researchers opportunities to calculate specific levels of risk tolerance. In the literature, researchers apply some form of a utility function to these situations and fit the data to their specification. 
+
+A common choice for game show modeling is exponential utility, which contains a single risk parameter: the coefficient of constant absolute risk aversion (CARA). @gertner estimates a CARA coefficient lower bound for bets on _Card Sharks_ of $3.1 \times 10^{-4}$ with a standard error of $1.7 \times 10^{-5}$. Metrick's (1995) analysis of wagers on _Jeopardy!_ found a CARA coefficient of `r met_own_estimate` with a standard error of $5.6 \times 10^{-5}$, which was not significantly different from risk neutrality. A paper on _Lingo_ by @lingo, on the other hand, estimates a strong risk-averse CARA coefficient of 0.12 with a standard error of 0.01. That paper also found constant relative risk aversion (CRRA) to explain gambles roughly as well as the CARA specification. 
+
+Some papers in the game show environment advocate utilizing a more flexible utility function, such as the expo-power utility function introduced by @flexo.^[See @dealornodeal for one application of this model on the game show _Deal or No Deal_.] The main issue with a more flexible utility specification is the danger of over-fitting. Fitting multiple parameters to a series of observed gambles to minimize a loss function will lose some interpretative value as one adds more parameters to the model. Moreover, @hartog find that, for financial wealth up to \$100,000, CARA is a reasonably good description of risk attitudes. In light of this, exponential utility is the preferred specification of this paper.
+
+## The Rules of _Jeopardy!_
+
+This section provides a brief explanation of the rules of _Jeopardy!_ as of March 12th, 2020.  _Jeopardy!_ is a trivia game with three players. The goal of the game is to finish with the most money. A player collects money by answering questions correctly.^[Technically, the show presents players with "answers" and they have to give the "questions." For example, the answer "This Economist won the Nobel Prize in 1976 for his work on consumption analysis, monetary history, and the complexity of stabilization policy" would merit the question "Who is Milton Friedman?" I ignore this technicality throughout the paper.] Questions are initially hidden on a game board behind certain dollar values. The larger the dollar value, the tougher the question. At the top of each column on the game board is the category for all the questions in that column. The category is visible to all players.
+
+The game is divided into three rounds. In the first round, the "Jeopardy Round," the returning champion picks one of the squares on the board, e.g. "I’ll take Famous Economists for \$400." Then, the question is shown and read by the host to all three players. When the question is done being read, a green light appears around the game board, indicating to all three players that they are allowed to buzz in. If a player buzzes in before the green light turns on, that person is prevented from buzzing for half a second. The first person to buzz in is the person who gets the first chance to answer the question. That person has five seconds to do this. If he or she answers incorrectly or runs out of time, the dollar value of the question is deducted from his or her current score. If he or she answers correctly, he or she earns the dollar value of that clue. In the case of an incorrect answer or time running out, the green light turns back on and the other players have the chance to buzz in. The question is live until someone gets it right, all three get it wrong, or no one buzzes in. This last situation is called a “Triple Stumper.” Players begin the game with zero dollars and scores can become negative.
+
+The person that ultimately answers correctly has “control of the board,” meaning he or she gets to pick the next question. The process repeats until all squares have been picked or until time for the Jeopardy Round runs out. Hiding under one of the squares on the board in the Jeopardy Round is the "Daily Double." If a player hits a Daily Double, he or she has the opportunity to wager some amount of his or her money on the question. If he or she answers correctly, he or she wins their wager. If he or she answers incorrectly, that amount is deducted from his or her score. The category is known to the player before wagering, but the specific question is not. The second round, the "Double Jeopardy Round," is the exact same as the first round except all dollar values are doubled and two Daily Doubles are hidden on the board.
+
+The third round is "Final Jeopardy." In this round, all three players are shown one category for one final question. Each must make a wager up to the amount he or she has. No player can see the wager of any other player. Then, the question is revealed, and each player has 30 seconds to write down his or her answer. A correct answer gives the reward of his or her wager. An incorrect answer deducts the player's wager from his or her score.
+
+The player with the most money after Final Jeopardy wins both the game and the amount of money he or she earned. He or she also gets to return the next day to play again as the returning champion. The other two players win a pre-determined amount of money: \$2,000 and \$1,000 for second and third place, respectively.
+
+Lock games, which are the focus of the estimation methods in this paper, occur when the leading player going into Final Jeopardy has more than double the score of the trailer. In these games, the leader has a sure victory so long as he or she does not bet more than an amount that would put him or her at risk of being caught by the trailer.
+
+## Rule Changes
+### Lock Games
+
+The frequent _Jeopardy!_ viewer might notice that the definition of a lock game has evolved over time due to rule changes on the show. Before November 2014, if a game ended in a draw, the players in the draw would all return to play the next day. After November 2014, if a game ends in a draw, Alex Trebek, the host, asks a tiebreaker question and only one person emerges victoriously. As a consequence, a game in which the leader has exactly double the score of the trailer going into Final Jeopardy is considered a lock before the rule change, but not after. The frequency of such events is small: of all 5,174 games observed, there are only `r format(nrow(lock_games_tie),big.mark=",",digits=2)` in which the leader has exactly double the score of the trailer going into Final Jeopardy. The analyses of this paper will therefore define a lock game to be a situation in which the leader has strictly more than double the score of the trailer going into Final Jeopardy.
+
+### Returning Champions
+
+In today's version of the show, a player can win and come back the next day for an unlimited amount of time. Prior to September 8, 2003, however, winners were not allowed to return after five wins. Brad Rutter, considered one of the best players of all time, had his time on _Jeopardy!_ before the cap was removed. This rule change has no effect on most analyses presented in this paper, except for the "Streak" variable in general summary statistics. This variable is capped at a value of five for games before September 8, 2003, potentially skewing the average.
+
+# Data
+## All _Jeopardy!_ Games
+
+Metrick examines data from 393 _Jeopardy!_ games between October 1989 and January 1992. This translates to 1,150 Final Jeopardy decisions made by around 1,000 individuals. The discrepancy between the number of decisions and the number of individuals is due to the fact that champions return to play another game. He does not have any demographic information, but he notes that the average _Jeopardy!_ player is likely wealthier and better educated than the average person (an assumption that I see no reason to doubt, given the game's difficulty).
+
+The first task of this paper is to build a dataset that consists of every game in _Jeopardy!_ history by scraping the J!Archive. The archive has information about many different elements of a specific game: who got which questions right, which questions went unanswered, how much players wagered for Final Jeopardy, and more.^[The J!Archive is an online repository available at www.j-archive.com. The scraped dataset is available upon request. See Appendix for more information.] All data analysis is done in R [@R]. Tables are created using the stargazer package [@stargazer] and figures are made with ggplot [@ggplot].
+
+The scraped dataset consists of `r format(nrow(master_raw),big.mark=",",digits=2)` regular season _Jeopardy!_ games and `r format(nrow(longraw),big.mark=",",digits=2)` individual Final Jeopardy decisions.^[These numbers exclude tournament and other non-regular _Jeopardy!_ play.] Summary statistics are provided in Table 1. Note that a single player is represented multiple times when assessing Final Jeopardy decisions, because winners return to play the next day and must make another wager for Final Jeopardy. For example, Ken Jennings made 74 _Jeopardy!_ appearances, all of which are included in the summary statistics of Table 1.
+
+```{r results = 'asis'}
+## TABLE 1
+
+stargazer(as.data.frame(subset(table_2[c("Player_dj_score","Player_wager","Player_gotit","Player_final_score","Player_coryat","male","streak")])),
+          type = "latex",
+          title = "Summary Statistics for all \\textit{Jeopardy!} Players",
+          covariate.labels = c("Score Going into Final Jeopardy (\\$)", "Wager (\\$)", "Correct", "Final Score (\\$)", "Final Coryat (\\$)", "Male", "Streak"),
+          notes = "\\parbox[t]{14.25cm}{\\textit{Notes: }This table displays summary statistics for 15,240 players on the game show \\textit{Jeopardy!}. ``Score Going into Final Jeopardy'' represents a player's score immediately before the Final Jeopardy round, ``Wager'' represents a player's Final Jeopardy wager, ``Correct'' is a dummy variable indicating whether or not a player correctly answered the Final Jeopardy question, ``Final Coryat'' represents a player's score if all wagering in the game is disregarded, ``Male'' is a dummy variable indicating if a player is male or not, and ``Streak'' indicates how many games the returning champion has won. These data are scraped from the J!Archive, accessible at www.j-archive.com. Gender is assigned by pulling name frequencies from Social Security Administration data between 1930 and 2012.}",
+          column.sep.width = "15pt",
+          summary.stat = c("mean", "sd","min", "median", "max"),
+          header=FALSE,
+          digits = 2
+          )
+```
+
+We can see that stakes on the show are high. The average amount a player can wager on Final Jeopardy is about \$9,346, and the mean wager is \$4,949. Final Jeopardy also proves to be challenging for the average contestant: players answer correctly only 46% of the time. This follows the _Jeopardy!_ community's intuition that Final Jeopardy tends to be as difficult as the fourth row of clues on the board (the fifth row is considered the hardest). 
+
+We also see some interesting results on the extreme ends of each variable. James Holzhauer's record for most money won before Final Jeopardy appears in the dataset (\$72,600), as well as Ken Jennings' longest win streak (74 games). A careful reader might worry about the negative value appearing in the dataset as the minimum for "Final Score." In regular season play, it is indeed possible to finish the game with a negative amount of money, but that player is not allowed to participate in Final Jeopardy.
+
+With respect to gender, the J!Archive does not directly provide information on player gender identification. The archive does, however, give each player's name. Utilizing the gender package in R, I examine the frequency of a player's name in Social Security Administration data between 1930 and 2012 [@gender]. In my analysis, I use the "ssa" method from the package, which draws from Social Security Administration Data in the United States between 1930 and 2012. When given a name, the package outputs the frequency that name appeared as male in the Social Security data between 1930 and 2012. I then take this frequency and classify it as the probability that the given name is male. To be categorized as male in the analyses of this paper, one's probability of being male must exceed 95%. That same threshold is also set for women. As a result, about `r format(nrow(longraw) - nrow(longraw_removenagender),big.mark=",",digits=2)` observations are dropped from gender analyses in this paper, and I am able to assign a gender to `r format(nrow(longraw_removenagender),big.mark=",")` players. Of the `r format(nrow(longraw),big.mark=",")` total players in my dataset, about `r format((nrow(longraw_male)/nrow(longraw))*100,big.mark=",",digits=2)`% are men, `r format((nrow(longraw_female)/nrow(longraw))*100,big.mark=",",digits=2)`% are women, and `r format(((nrow(longraw) - nrow(longraw_removenagender))/nrow(longraw))*100,big.mark=",",digits=2)`% are unable to be categorized. The male skew in candidate selection could be the result of a number of factors, including, but not limited to, the age of the show, gender bias in candidate selection, and preference differences.
+
+Tables 2 and 3 present summary statistics for men and women, respectively. Men tend to have about \$1,900 more than women going into Final Jeopardy. Men also tend to wager more than women, though the gap is smaller at about \$500. Men answer Final Jeopardy correctly 48% of the time, while that number for women is 42%. On average, men have higher Final Scores and Coryat Scores than women, with gaps of about \$2,500 and \$1,500 respectively. These data suggest a gender gap in ability on the show. Assessing the causes or ramifications of these statistics is beyond the scope of this paper.
+
+
+```{r results = 'asis'}
+stargazer(as.data.frame(subset(table_3[c("Player_dj_score","Player_wager","Player_gotit","Player_final_score","Player_coryat","streak")])),
+          type = "latex", 
+          title = "Summary Statistics for Male \\textit{Jeopardy!} Players", 
+          covariate.labels = c("Score Going into Final Jeopardy (\\$)", "Wager (\\$)", "Correct", "Final Score (\\$)", "Final Coryat(\\$)","Streak"), 
+          notes = "\\parbox[t]{14.25cm}{\\textit{Notes: }This table displays summary statistics for 7,944 male players on the game show \\textit{Jeopardy!}. ``Score Going into Final Jeopardy'' represents a player's score immediately before the Final Jeopardy round, ``Wager'' represents a player's Final Jeopardy wager, ``Correct'' is a dummy variable indicating whether or not a player correctly answered the Final Jeopardy question, ``Final Coryat'' represents a player's score if all wagering in the game is disregarded, and ``Streak'' indicates how many games the returning champion has won. These data are scraped from the J!Archive, accessible at www.j-archive.com. Gender is assigned by pulling name frequencies from Social Security Administration data between 1930 and 2012.}", 
+          column.sep.width = "13pt",
+          digits = 2,
+          summary.stat = c("mean", "sd","min", "median","max"),
+          header=FALSE)
+
+```
+
+```{r results = 'asis'}
+## TABLE 4
+
+stargazer(as.data.frame(subset(table_4[c("Player_dj_score","Player_wager","Player_gotit","Player_final_score","Player_coryat","streak")])),
+          type = "latex", 
+          title = "Summary Statistics for Female \\textit{Jeopardy!} Players", 
+          covariate.labels = c("Score Going into Final Jeopardy (\\$)", "Wager (\\$)", "Correct", "Final Score (\\$)", "Final Coryat (\\$)","Streak"), 
+          notes = "\\parbox[t]{14cm}{\\textit{Notes: }This table displays summary statistics for 5,555 female players on the game show \\textit{Jeopardy!}. ``Score Going into Final Jeopardy'' represents a player's score immediately before the Final Jeopardy round, ``Wager'' represents a player's Final Jeopardy wager, ``Correct'' is a dummy variable indicating whether or not a player correctly answered the Final Jeopardy question, ``Final Coryat'' represents a player's score if all wagering in the game is disregarded, and ``Streak'' indicates how many games the returning champion has won. These data are scraped from the J!Archive, accessible at www.j-archive.com. Gender is assigned by pulling name frequencies from Social Security Administration data between 1930 and 2012.}", 
+          no.space = FALSE,
+          column.sep.width = "13pt", 
+          summary.stat = c("mean", "sd","min", "median","max"),
+          digits = 2,
+          header=FALSE)
+```
+
+
+## Lock Games
+
+In a lock game, the leading player going into Final Jeopardy has more than double the score of the trailer. A lock game leader has a sure victory so long as he or she does not bet more than an amount that would put him or her at risk of being caught by the trailer. Therefore, up to the maximum bet, the leader is wagering some amount of money on his or her ability to answer the question correctly. If we assign some subjective probability to the player answering correctly, his or her wager would then reveal some level of risk tolerance. This estimation is the focus of Section 4 of this paper.
+
+Table 4 presents summary statistics for lock games. Notice that, in the average lock game, the leader has up to about \$4,500 to wager. This is the maximum value the leader can afford to lose in case the trailer doubles his or her money. Also, lock game leaders have a five percentage point higher success rate when answering Final Jeopardy than the average player. Lock game leaders also have higher Coryat Scores, Double Jeopardy Scores, and Final Scores when compared to the average player. This is to be expected, as anyone who achieves a lock game on _Jeopardy!_ is typically highly skilled at the game. 
+
+```{r results = 'asis'}
+## TABLE 2
+## Move this whole code chunk to thesis doc. Save the dataset used to WD.
+
+stargazer(as.data.frame(subset(table_1[c("djfirst_place_dj_score","djsecond_place_dj_score","djfirst_place_wager","djfirst_gotit","djsecond_gotit","streak")])), 
+          type = "latex", 
+          title = "Summary Statistics for Lock Game Situations on \\textit{Jeopardy!}", 
+          covariate.labels = c("Leader's Score (\\$)", "Trailer's Score (\\$)", "Leader's Wager (\\$)", "Leader Got It?", "Trailer Got It?", "Streak"), 
+          notes = "\\parbox[t]{14cm}{\\textit{Notes: }This table displays summary statistics for 1,334 lock games on the game show \\textit{Jeopardy!}. Lock games are situations in which the leader going into Final Jeopardy has more than double the score of the trailer. ``Leader's Score'' is the leader's score going into Final Jeopardy, ``Trailer's Score'' is the trailer's score going into Final Jeopardy, ``Leader's Wager'' is the leader's wager, ``Got It?'' is a dummy variable indicating if the respective player actually got the question correct, and ``Streak'' indicates how many games the returning champion has won. These data are scraped from the J!Archive, accessible at www.j-archive.com. Gender is assigned by pulling name frequencies from Social Security Administration data between 1930 and 2012.}", 
+          column.sep.width = "24pt", 
+          no.space = TRUE,
+          summary.stat = c("mean", "sd","min", "median", "max"),
+          header = FALSE,
+          digits=2)
+
+```
+
+Tables 5 and 6 present summary statistics for male and female lock game leaders.^[These leaders are not necessarily unique individuals; a returning champion is included as a new player for each game he or she plays.] The gender gap observed for general _Jeopardy!_ games persists in lock games as well. Of the `r format(nrow(longraw_male),big.mark=",")` male players observed, `r format(nrow(table_5),big.mark=",")` (`r format((nrow(table_5)/nrow(longraw_male))*100,big.mark=",",digits=2)`%) are lock game leaders. Of the `r format(nrow(longraw_female),big.mark=",")` female players observed, `r format(nrow(table_6),big.mark=",")` (`r format((nrow(table_6)/nrow(longraw_female))*100,big.mark=",",digits=2)`%) are lock game leaders. Male leaders tend to have \$3,250 more than female leaders going into Final Jeopardy. Male leaders also tend to wager more, with a gap of about \$1,700. Lastly, male leaders have a success rate of 54%, while that number for female leaders is 46%.
+
+The number of lock games is substantially lower than the number of _Jeopardy!_ games: about `r format((1334/nrow(longraw))*100,digits=2)`% of all games are lock games, which corresponds to `r format(1334,big.mark=",")` observations. After removing lock games where the leader's name provides no clear indication of gender, we are left with `r format(nrow(table_5) + nrow(table_6),big.mark=",")` lock games (`r format(((nrow(table_5) + nrow(table_6))/nrow(longraw))*100,digits=2)`% of all games). Over time, more lock games are bound to occur, and the analyses of this paper can be repeated on a much larger dataset.
+
+```{r results = 'asis'}
+## TABLE 5
+## Move this whole code chunk to thesis doc. Save the dataset used to WD.
+
+stargazer(as.data.frame(subset(table_5[c("djfirst_place_dj_score","djsecond_place_dj_score","djfirst_place_wager","djfirst_gotit","djsecond_gotit","streak")])), 
+          type = "latex",
+          title = "Summary Statistics for Male Lock Game Leaders on \\textit{Jeopardy!}", 
+          covariate.labels = c("Leader's Score (\\$)", "Trailer's Score (\\$)", "Leader's Wager (\\$)", "Leader Got It?", "Trailer Got It?", "Streak"),
+          notes = "\\parbox[t]{14cm}{\\textit{Notes: }This table displays summary statistics for 912 male lock game leaders on the game show \\textit{Jeopardy!}. Lock games are situations in which the leader going into Final Jeopardy has more than double the score of the trailer. ``Leader's Score'' is the leader's score going into Final Jeopardy, ``Trailer's Score'' is the trailer's score going into Final Jeopardy, ``Leader's Wager'' is the leader's wager, ``Got It?'' is a dummy variable indicating if the respective player actually got the question correct, and ``Streak'' indicates how many games the returning champion has won. These data are scraped from the J!Archive, accessible at www.j-archive.com. Gender is assigned by utilizing Social Security Administration data between 1930 and 2012.}", 
+          column.sep.width = "24pt",
+          summary.stat = c("mean", "sd","min", "median","max"),
+          header=FALSE,
+          digits=2)
+
+```
+
+```{r results = 'asis'}
+## TABLE 6
+## Move this whole code chunk to thesis doc. Save the dataset used to WD.
+
+stargazer(as.data.frame(subset(table_6[c("djfirst_place_dj_score","djsecond_place_dj_score","djfirst_place_wager","djfirst_gotit","djsecond_gotit","streak")])), 
+          type = "latex", 
+          title = "Summary Statistics for Female Lock Game Leaders on \\textit{Jeopardy!}", 
+          covariate.labels = c("Leader's Score (\\$)", "Trailer's Score (\\$)", "Leader's Wager (\\$)", "Leader Got It?", "Trailer Got It?","Streak"), 
+          notes = "\\parbox[t]{14cm}{\\textit{Notes: }This table displays summary statistics for 275 female lock game leaders on the game show \\textit{Jeopardy!}. Lock games are situations in which the leader going into Final Jeopardy has more than double the score of the trailer. ``Leader's Score'' is the leader's score going into Final Jeopardy, ``Trailer's Score'' is the trailer's score going into Final Jeopardy, ``Leader's Wager'' is the leader's wager, ``Got It?'' is a dummy variable indicating if the respective player actually got the question correct, and ``Streak'' indicates how many games the returning champion has won. These data are scraped from the J!Archive, accessible at www.j-archive.com. Gender is assigned by pulling name frequencies from Social Security Administration data between 1930 and 2012.}", 
+          column.sep.width = "24pt",
+          summary.stat = c("mean", "sd","min", "median","max"),
+          header=FALSE,
+          digits=2)
+
+```
+
+# Analyses
+## Model Definitions
+
+I begin by defining variables that will be referenced across all models presented in this paper. Let the amount of money a player has going into Final Jeopardy (FJ) be denoted $x$, a player's wager in FJ be denoted $y$, a player's subjective probability of getting FJ correct be denoted $p^s$, a player's CARA coefficient be denoted $\alpha$, and the present value of a player's lifetime wealth be denoted $W$.
+
+A player is indexed according to his or her rank after Double Jeopardy, denoted $i$, and the specific _Jeopardy!_ game he or she is in, denoted $j$. For example, a player's wager on show number 234 who is in first place after Double Jeopardy is represented as $y_{1,234}$, and the second place player's wager after Double Jeopardy on that same episode is denoted $y_{2,234}$. For simplicity, the index $j$ will only be used for the regressions of this paper.
+
+Since players must wager no more than what they earned before FJ and no less than zero, we have the constraint $0 \le y_i \le x_i$. Also, we can write a lock game like so: $x_1 > 2x_2$. Under this model's assumptions, a lock game leader who wagers an amount that no longer ensures victory is considered irrational. So, for a rational lock game leader, we have the additional constraint $y_{1} < x_{1} - 2x_{2} - 1$. In our data, of the `r format(nrow(lock_games_long_all),big.mark=",")` lock games, `r nrow(lock_games_long_all) - nrow(lock_games_long_all_rational)` have irrational lock game leaders. These individuals are filtered out from all lock game analyses.
+
+## Linear Model
+
+Before estimating player CARA coefficients under an exponential utility specification, I run a linear regression to get a general sense of risk preference expressed on the show. The dependent variable of this model is a lock game leader's wager as a fraction of the maximum possible bet. As described in the prior section, the rational leader's maximum possible bet is $x_1 - 2x_2 -1$. I regress this fraction on a gender dummy variable and introduce controls for ability. The regression equation is given by Equation (1). The ability vector, $\vec{A}$, contains five ability controls: the number of questions a player answered correctly over the game, the number of questions a player answered incorrectly over the game, a player's Coryat Score (a score that disregards all wagering during the game), a player's score after Double Jeopardy, and a player's Final Score. A full description of these variables can be found in the Appendix.
+
+\begin{equation}
+\tag{1}
+\frac{y_{1,j}}{x_{1,j} - 2x_{2,j}-1} = \beta_0 + \beta_1\times\text{Male}_j + \vec{\beta_j}\cdot\vec{A_j} + \epsilon_j
+\end{equation}
+
+Since some names do not provide a clear enough indication of gender, they are dropped from the regression. Of `r format(nrow(lock_games_long_all),big.mark=",")` lock games, `r nrow(lock_games_long_all_rational) - nrow(lock_games_long_male) - nrow(lock_games_long_female)` are dropped due to this ambiguity and `r nrow(lock_games_long_all) - nrow(lock_games_long_all_rational)` are dropped due to irrationality ($y_1 > x_1 - 2x_2 - 1$). We are left with `r format(nobs(basic_risk_reg),big.mark=",")` observations. 
+
+The results are displayed in Table 7. Under Regressions (1), being male is associated with wagering slightly more as a fraction of one's allowed wager---around five percentage points more---and the effect is significant at the five percent level. After introducing ability controls for number of questions answered correctly and incorrectly, that number increases to 7.5 percentage points and the effect is significant at the ten percent level. After introducing all five controls for ability, the difference settles to six percentage points with significance at the five percent level. The $R^2$ values for all five regressions are very small, indicating that gender accounts for only a small fraction of the variation observed in wagers.
+
+```{r,include=FALSE}
+basic_risk_reg <- read_rds("basic_risk_reg")
+basic_risk_reg_1 <- read_rds("basic_risk_reg_1")
+basic_risk_reg_2 <- read_rds("basic_risk_reg_2")
+basic_risk_reg_3 <- read_rds("basic_risk_reg_3")
+basic_risk_reg_4 <- read_rds("basic_risk_reg_4")
+basic_risk_reg_5 <- read_rds("basic_risk_reg_5")
+
+star_basicrisk<- stargazer(basic_risk_reg,
+  basic_risk_reg_1,
+          basic_risk_reg_2,
+          basic_risk_reg_3,
+          basic_risk_reg_4,
+          basic_risk_reg_5,
+          type = "latex",
+          title = "Risk Estimation from Final Jeopardy Wagers",
+          covariate.labels = c("Male","Correct","Incorrect","Coryat","Score After DJ","Final Score"),
+          # column.labels=c(),
+          # omit = c("Player_correct","Player_incorrect","Player_coryat","Player_dj_score","Player_final_score"),
+          # add.lines = list(c("Ability Controls?", "No", "Yes")),
+          dep.var.labels = c("Wager as a Fraction of Maximum Possible Bet"),
+          notes.append = FALSE,
+          notes = "This will be replaced}",
+          # single.row = TRUE,
+          digits = 3,
+          column.sep.width = "1pt",
+          omit.stat = c("f","ser"), 
+          notes.align = "l",
+          # float.env = "sidewaystable",
+          header=FALSE)
+
+note.latex_basicrisk <- "\\multicolumn{7}{l} {\\parbox[t]{13cm}{\\textit{Notes: }This table presents linear regressions that estimate the risk profile of male and female lock game leaders on the game show \\textit{Jeopardy!}. Lock games are situations in which the leader going into Final Jeopardy has more than double the score of the trailer. The ``Maximum Possible Bet'' for a lock game leader is the one that ensures victory even if the trailer doubles his or her money. ``Male'' is a dummy variable indicating if a player is male. ``Correct'' and ``Incorrect'' represent how many questions the player answered correctly and incorrectly, respectively. ``Coryat'' refers to a player's Coryat Score, which is a score that disregards all wagering during the game. ``Score After DJ'' is a player's score after the Double Jeopardy Round and ``Final Score'' is a player's score at the end of the game. The regressions suggest that, after controlling for ability, being male is associated with wagering slightly more (about six percentage points) as a fraction of one's maximum possible bet. Game data are scraped from the J!Archive, accessible at www.j-archive.com. Gender is assigned by pulling name frequencies from Social Security Administration data between 1930 and 2012. Standard errors are in parentheses. * \\textit{p}<0.1; ** \\textit{p}<0.05; *** \\textit{p}<0.01.}} \\\\"
+
+star_basicrisk[grepl("Note",star_basicrisk)] <- note.latex_basicrisk
+```
+
+```{r results = 'asis'}
+cat (star_basicrisk, sep = "\n")
+```
+
+These results suggest men are willing to risk more of their money than women, even after controlling for ability. However, this analysis by no means paints a full picture of risk tolerance differences between both groups. These regressions do not fully account for the diminishing marginal utility of money. They also control for ability rather than the subjective probability of answering Final Jeopardy correctly. The analysis can be further complicated by introducing an exponential utility model and estimating a coefficient of absolute risk aversion that best fits the model to the data. This is the task of the next section.
+
+## Metrick Model
+
+I now replicate Metrick's (1995) model of lock game situations in _Jeopardy!_ and note three of its shortcomings. Assume players follow exponential utility with constant absolute risk aversion (CARA) as given by Equation (2). Under this function, the sign of $\alpha$, the coefficient of absolute risk aversion, determines if an individual is risk-seeking ($\alpha<0$), risk-neutral ($\alpha=0$), or risk-averse ($\alpha>0$). Note that this equation omits the divisor common to exponential utility. Since players ultimately solve the maximization problem given by Equation (3), this assumption has no impact on the model's results.
+
+\begin{equation}
+\tag{2}
+U(x) = 1 - e^{-\alpha x}
+\end{equation}
+The leader in a lock game situation solves:
+\begin{equation}
+\tag{3}
+\max_{y_1}[p_1^sU(x_1+y_1+W_1)+(1-p_1^s)U(x_1-y_1+W_1)] \ \ \ \text{ s.t. } \ \ \ 0 \le y_1 \le x_1-2x_2 - 1
+\end{equation}
+The optimal wager is therefore given by:
+\begin{equation}
+\tag{4}
+y_1^* = \min[\frac{\ln \left( \frac{p_1^s}{1-p_1^s} \right)}{2\alpha_1},x_1 - 2x_2 - 1]
+\end{equation}
+The intuition of the optimal wager is straightforward: the leader follows exponential utility and makes a wager based on his or her subjective probability of getting FJ correct. However, due to the nature of _Jeopardy!_, if this optimal value exceeds the limit imposed by the possibility of second place doubling his or her money, the leader will simply bet $x_1 - 2x_2 - 1$ so as to ensure victory while maximizing utility. This type of wager occurs exactly `r format(nrow(lock_games_wager_is_maxed),big.mark=",",digits=2)` times in lock game history.
+
+If the optimal value does not exceed the limit imposed by the trailer, then the optimal wager is given by Equation (5). In these situations, observation of $y_1^*$ and $p_1^s$ on the show allows for an estimation $\alpha_1$, the CARA coefficient.
+
+\begin{equation}
+\tag{5}
+y_1^* = \frac{\ln \left( \frac{p_1^s}{1-p_1^s} \right)}{2\alpha_1}
+\end{equation}
+
+I now explain the first flaw of this model. Metrick notes that, with uncensored knowledge of every player's $p_1^s$ and $y_1^*$, he can read out $\alpha_1$ for every individual through Equation (5). Let us assume one has access to that information. If the optimal wager ($y_1^*$) exceeds the limit imposed by the constraint in Equation (2), then one cannot observe a risk parameter for this individual. Such a wager occurs `r format(nrow(lock_games_wager_is_maxed),big.mark=",",digits=2)` times out of `r format(nrow(lock_games_wide_all),big.mark=",",digits=2)` lock games, which accounts for `r format((nrow(lock_games_wager_is_maxed))/(nrow(lock_games_wide_all)),big.mark=",",digits=2)`% of all lock games. 
+
+Similarly, _Jeopardy!_ does not allow negative wagers, so risk-averse individuals with $\alpha_1>0; \ p_1^s < 0.5$ and risk-seeking individuals with $\alpha_1<0;\ p_1^s > 0.5$ will want to wager some negative amount but will be forced by the nature of the game to wager zero. So, for players who wager zero, we cannot calculate a precise CARA coefficient.^[Of course, the idea of allowing negative wagers on _Jeopardy!_ is silly, but in the context of this model, "Answering Final Jeopardy Correctly" is treated as a random event, and individuals desiring negative wagers for random events over which they have no control is reasonable.] The zero wager in a lock game situation occurs `r format(nrow(lock_games_wager_is_mind),big.mark=",",digits=2)` times, which accounts for `r format((nrow(lock_games_wager_is_mind))/(nrow(lock_games_wide_all)),big.mark=",",digits=2)`% of all lock games.
+
+The infrequency of the two aforementioned problematic wagers suggests that omitting them from analyses will have little effect on overall risk estimation. However, given the general assumption of risk aversion in economics, omitting zero wagers from the analyses could skew the CARA coefficient mean to be more risk-seeking than it actually is. Given this possibility, using the model to make conclusions about risk tolerance for a certain population, as Metrick does, is a bit of a leap. While CARA coefficient estimation under Metrick's model may be flawed, relative comparisons of CARA coefficients across groups is still justified, assuming both groups are affected similarly by the bias. Thus, this paper omits problematic wagers from all analyses and refrains from making conclusions about the level of risk tolerance for any one particular group. Instead, I draw relative risk comparisons across gender.
+
+Now comes the issue of calculating a subjective probability $p_1^s$ for every lock game leader. Metrick does not do this. Instead, he rearranges Equation (5) and notices that it follows the form of a logistic regression.
+
+\begin{equation}
+\tag{6}
+\ln \left( \frac{p_1^s}{1-p_1^s} \right) = 2y_1^*\alpha_1
+\end{equation}
+
+Equation (6) is the form of a logistic regression with an intercept term that is forced to be zero. "Answering Final Jeopardy Correctly" is the binary dependent variable, and two times a player's wager is the independent variable. The coefficient of interest is $\alpha_1$. In Metrick's original analysis, he found the intercept term of a free logistic regression to not be significantly different from 0. This, he argued, allowed him to keep the model's assumption of a zero intercept. This assumption is data-dependent. Under a different dataset, the assumption of a zero intercept might be violated. If one allows equation (6) to have a free intercept, then the optimal wager $y_1^*$ is given by:
+
+\begin{equation}
+\tag{7}
+\ln \left(\frac{p_1^s}{1-p_1^s} \right) = 2\alpha_1 y_1^* + \beta_1
+\end{equation}
+
+Here we find the second flaw in Metrick's methodology. It can be mathematically shown that, under classical assumptions, no closed form utility function exists such that Equation (7) is the solution to the initial maximization problem laid out in Equation (3) when $\beta_1 \ne 0$. The proof is as follows.
+\newline
+
+_Proof._ We want to show that there does not exist a continuous function $U(x;\alpha,\beta)$ with the properties $U'(x)>0 ; x,\alpha,\beta \in \mathbb{R}$ such that, for all $x_1 > 0, W_1 > 0,$ and $p_1^s \in [0,1]$, the solution to
+\begin{equation}
+\tag{a}
+\max_{y_1}[p_1^sU(x_1+y_1+W_1)+(1-p_1^s)U(x_1-y_1+W_1)]
+\end{equation}
+yields
+\begin{equation}
+\tag{b}
+\ln \left(\frac{p_1^s}{1-p_1^s} \right) = 2\alpha_1 y_1^* + \beta_1
+\end{equation}
+where $\beta_1$ is nonzero. Assume there does exist some utility function that satisfies this. Let $A = x_1 + W_1$. The first order condition brought about by the maximization problem is:
+\begin{equation}
+\tag{c}
+\frac{p_1^s}{1-p_1^s} = \frac{U'(A - y_1^*)}{U'(A + y_1^*)}
+\end{equation}
+Let $L = A - y_1^*$ and $c = 2y_1^*$. Then we can rewrite the first order condition like so:
+\begin{equation}
+\tag{d}
+\frac{p_1^s}{1-p_1^s} = \frac{U'(L)}{U'(L + c)}
+\end{equation}
+Now, let $f(x)=U'(x)$. Considering this must be true for all values of $A>0$, we rewrite again:
+\begin{equation}
+\tag{e}
+\frac{p_1^s}{1-p_1^s} = \frac{f(x)}{f(x+c)}
+\end{equation}
+$$\implies f(x+c) = \left( \frac{1-p_1^s}{p_1^s} \right)f(x) $$
+By substituting in Equation (b):
+\begin{equation}
+\tag{f}
+\frac{f(x)}{f(x+c)} = e^{\alpha_1c + \beta}
+\end{equation}
+$$\implies \frac{f(x)}{f(x+2c)}=e^{2\alpha_1c+\beta}$$
+Also, note that, by Equation (e), we have:
+\begin{equation}
+\tag{g}
+f(x+2c)=\left( \frac{1-p_1^s}{p_1^s} \right)^2f(x)
+\end{equation}
+$$\implies \frac{f(x)}{f(x+2c)}=e^{2\alpha_1c+2\beta}$$
+$$\implies e^{2\alpha_1c + \beta} = e^{2\alpha_1c+2\beta}$$
+$$\implies \beta = 2\beta$$
+$$\implies \beta = 0$$
+Therefore, Metrick's model can only be interpreted if the intercept term of a free logistic regression is not significantly different from zero. QED.
+\newline
+
+I now run Metrick's logistic regression to see if the data violates the zero intercept assumption. Table 8 shows the results of this regression broken up by gender. The first three columns follow the logistic regression given by Equation (7)---they regress "Answering Final Jeopardy Correctly" on two times a lock game leader's wager. Regression (1) includes rational lock game leaders and omits the problematic wagers mentioned earlier. Regressions (2) and (3) are limited to identifiable men and women, respectively. Regression (4) is a difference-in-differences analysis that compares the male and female coefficients from Regressions (2) and (3). Notice that the observation count for Regression (4) is smaller than that of Regression (1). This is due to the fact that Regression (4) compares players that could be categorized as men and women: ambiguously named individuals are not included. In Regression (1), however, ambiguously named players are included.
+
+None of the coefficients are significantly different from zero, meaning the Metrick model retains some interpretative value here. Regression (4) indicates that the CARA coefficient mean is not significantly different between men and women. While the intercept terms are not significantly different from zero, interpreting Metrick's model would be impossible had these terms been nonzero, a possibility that is more likely given a larger dataset.
+
+The third problem with Metrick's model has to do with overconfidence. Let us assume that players on the show exhibit overconfidence, i.e., their subjective probability of answering FJ correctly is greater than their true probability. Then, by Equation (6), CARA coefficients will appear more risk-seeking than they actually are. Under-confidence, on the other hand, would make CARA coefficients appear more risk-averse than they actually are. Metrick mentions overconfidence as a possible explanation behind the relatively low CARA coefficient he estimated for his sample. 
+
+The three shortcomings mentioned thus far can be alleviated with some updates to the model. First, given the bias caused by omitting players with zero wagers and maximum wagers, we can focus solely on inter-group comparison of risk tolerance, assuming the bias equally affects both groups. Second, we can move away from a reliance on single-parameter estimation via logistic regression by allowing the probability of getting FJ correct ($p_1^s$) to vary by individual. This allows us to calculate $\alpha_1$ for every lock game leader in the show's history. Third, we can adjust the model to include an overconfidence parameter and see how its inclusion affects our results. These alterations are discussed in the following section.
+
+```{r, include=FALSE}
+star_1<-stargazer(
+  # met_model_noint_all,
+          met_model_all,
+          # met_model_noint_male,
+          met_model_male,
+          # met_model_noint_female, 
+          met_model_female,
+          met_model_diff_in_diff,
+          type = "latex",
+          title = "CARA Coefficient Estimates via Logistic Regression for Lock Game Leaders on \\textit{Jeopardy!}",
+          covariate.labels = c("Wager Doubled","Male", "Wager Doubled $\\times$ Male"),
+          column.labels=c("All","Men","Women","All"),
+          dep.var.labels = c("Answering Final Jeopardy Correctly"),
+          notes.append = FALSE,
+          notes = "This will be replaced",
+          # digits = 7,
+          column.sep.width = "25pt",
+          notes.align = "l",
+          header=FALSE)
+
+note.latex_1 <- "\\multicolumn{5}{l}{\\parbox[t]{14cm}{\\textit{Notes: }This table displays estimates for a coefficient of constant absolute risk aversion (CARA) that best explains the decision making of lock game leaders on \\textit{Jeopardy!}. Lock games are situations in which the leading player going into Final Jeopardy has more than double the score of the trailer. In such games, the leader's optimal wager under an exponential utility model follows the form of a logistic regression where ``Answering Final Jeopardy Correctly'' is the binary dependent variable and ``Wager Doubled'' is the independent variable. The coefficient on ``Wager Doubled'' is the CARA coefficient that best explains the wagers of the respective population. A lower CARA coefficient corresponds to greater risk-seeking behavior. The last column presents a difference-in-differences analysis to compare the coefficients expressed by men and women in Regressions (2) and (3). The difference between men and women is not statistically significant. Game data are scraped from the J!Archive, accessible at www.j-archive.com. Gender is assigned by pulling name frequencies from Social Security Administration data between 1930 and 2012. Standard errors are in parentheses. * \\textit{p}<0.1; ** \\textit{p}<0.05; *** \\textit{p}<0.01.}} \\\\"
+star_1[grepl("Note",star_1)] <- note.latex_1
+```
+
+```{r results = 'asis'}
+cat (star_1, sep = "\n")
+```
+
+## Updated Metrick Model
+
+Metrick did not have access to probability information for each game. Hence, he was required to utilize logistic regression across all games to estimate one risk parameter for the behavior of the entire population. Thanks to the abundance of information on the J!Archive, I can adjust Metrick's model and calculate player specific subjective probabilities ($p_1^s$) and CARA coefficients ($\alpha_1$). To impute a $p_1^s$ to each player, the adjusted model regresses the binary variable "Answering Final Jeopardy Correctly" on five in-game variables across all _Jeopardy!_ games to predict a player's true probability ($p_i$) of answering FJ correctly.^[See Appendix for an in-depth explanation of this regression.] The main assumption behind such a regression is that to assess an individual's true probability of getting FJ correct, one should see how that person and his or her opponents fared in the game and then examine FJ success rates for similar types of games over the history of the show. This becomes the true probability $p_i$ that a player has of getting FJ correctly. Let us return to the optimal wager equation under the Metrick Model:
+
+\begin{equation}
+\tag{5}
+y_1^* = \frac{\ln \left( \frac{p_1^s}{1-p_1^s} \right)}{2\alpha_1}
+\end{equation}
+
+Now, assuming (i) a player's subjective probability is equal to the probability predicted by the logistic regression ($p_i = p_i^s$) and (ii) players make an optimal wager following this model, the leader's unadjusted CARA coefficient ($\alpha_1$) is given by rearranging Equation (5):
+
+$$\alpha_1 = \frac{\ln \left( \frac{p_1}{1-p_1} \right)}{2y_1^*} $$
+
+The CARA coefficient is unadjusted because it does not take into account overconfidence: it assumes that $p_i = p_i^s$. Perhaps players have some level of overconfidence or under-confidence ($p_i \ne p_i^s$). In the model, we can define confidence bias (denoted $c$) as the difference between a player's subjective probability ($p^s$) and true probability ($p$). Thus, we can write: $p_1^s = p_1 + c_1$. Notice that when $c_1 < 0$, we have under-confidence, and when $c_1 > 0$, we have overconfidence. Substituting this into Equation (5) yields:
+
+\begin{equation}
+\tag{8}
+y_1^* = \frac{\ln \left( \frac{p_1+c_1}{1-p_1-c_1} \right)}{2\alpha_1}
+\end{equation}
+
+Since Equation (8) has two unknowns, $\alpha_1$ and $c_1$ for each player, we cannot make a calculation of $\alpha_1$ for each individual. Instead, we can estimate two values $\hat{\alpha_1}$ and $\hat{c_1}$ that best explain the wagers made by the population. The particular method of fit I use is non-linear least squares estimation. If we index every lock game leader by $j$ and look at $n$ lock games, we can represent the least-squares problem by Equation (9). 
+
+\begin{equation}
+\tag{9}
+\min_{\hat{\alpha_1} , \hat{c_1}} \left[ \sum_{j=1}^n \left( \frac{\ln \left( \frac{p_j+\hat{c_1}}{1-p_j-\hat{c_1}} \right)}{2\hat{\alpha_1}} - y_j^* \right)^2 \right] 
+\end{equation}
+
+The non-linear fit analysis chooses $\hat{c_1}$ and $\hat{\alpha_1}$ that minimizes the sum of square errors in Equation (9) for men, and then also does this optimization separately for women. Results are displayed in Table 9. Women tend to overestimate their probability of getting FJ correct by `r format(female_conf_error*100,digits=3)` percentage points, while that number for men is `r format(male_conf_error*100,digits=3)`. Each error is significant at the one percent level.
+
+```{r results = 'asis',warning=FALSE}
+myscipen <- function (x){
+  if (x < 0.000000001 & -0.000000000001<x){
+    return(formatC(x,format="e",digits=2))
+  }
+  else return(format(x,digits=3))
+}
+nls_fit <- read_rds("nls_fit")
+
+nls_fit <- nls_fit %>% 
+  mutate_if(is.numeric,myscipen) %>% 
+  dplyr::rename("p-value" = "P-Value")
+
+stargazer(nls_fit,
+          summary = FALSE,
+          rownames = FALSE,
+          type = "latex",
+          title = "Least Squares Estimation of CARA Coefficients and Overconfidence by Gender",
+          notes = "\\parbox[t]{14cm}{\\textit{Notes: } This table displays the results of two non-linear least squares estimations that fit an overconfidence measure and a coefficient of constant absolute risk aversion (CARA) to the Final Jeopardy (FJ) wagers of lock game leaders on the game show \\textit{Jeopardy!}. Lock games are situations in which the leader going into FJ has more than double the score of the trailer. Assuming lock game leaders optimize over an exponential utility function, a CARA coefficient and overconfidence level can be fit to the wagering decisions observed on the show. According to the table, men tend to overestimate their probability of getting FJ correct by 3.03 percentage points, while women tend to overestimate their probability by 7.42 percentage points. Men also exhibit a more risk-seeking CARA coefficient, but if one incorporates overconfidence into a model that allows CARA coefficients to vary by individual, the difference in risk tolerance becomes insignificant. See Table 12 for the results of that specification. Game data are scraped from the J!Archive, accessible at www.j-archive.com. Gender is assigned by pulling name frequencies from Social Security Administration data between 1930 and 2012.}",
+          column.sep.width = "20pt",
+          # rownames = FALSE,
+          # digits = 2
+          # notes.align = "l",
+          header=FALSE,
+          digits = 3
+          )
+```
+
+A direct comparison of $\hat{\alpha_1}$ across gender is possible at this point. Indeed, the male CARA coefficient is lower than the female CARA coefficient and the result is statistically significant. However, this eliminates the model's allowing of $\alpha_1$ to vary by individual. So, I return to Equation (8) and add $\hat{c_1}$ to each player's predicted $p_1$. Now, each player has a subjective probability ($p_1^s$) and we can read out an adjusted CARA coefficient for each player. Recall that the unadjusted CARA coefficient is the CARA coefficient for each player assuming $p_1 = p_1^s$ (no overconfidence).
+
+Summary statistics for unadjusted and adjusted CARA coefficients are displayed Tables 10 and 11, respectively. Notice that in Table 10, the mean unadjusted CARA coefficient for men and women is negative, which indicates risk-seeking behavior. However, in Table 11, we see that, after adjusting for overconfidence, the mean becomes positive (risk aversion). Recall that CARA coefficient estimation in this context has bias due to the fact that players cannot wager a negative amount or more than the maximum amount. Assuming the bias is equal across men and women, however, we can make relative comparisons across gender.
+
+```{r results = 'asis',warning=FALSE}
+## TABLE 6
+## Move this whole code chunk to thesis doc. Save the dataset used to WD.
+cont_coef_df <- as.data.frame(cont_coef_tbl)
+
+cont_coef_tbl <- cont_coef_tbl %>% 
+  mutate_if(is.numeric, myscipen)
+stargazer(cont_coef_tbl,
+          summary = FALSE,
+          rownames = FALSE,
+          type = "latex",
+          title = "Unadjusted CARA Coefficient Summary Statistics by Gender",
+          notes = "\\parbox[t]{14cm}{\\textit{Notes: }This table shows summary statistics for uadjusted coefficients of absolute risk aversion expressed by lock game leaders on the game show \\textit{Jeopardy!}. Lock games are situations in which the leader going into Final Jeopardy (FJ) has more than double the score of the trailer. Under an exponential utility specification, a lock game leader's coefficient of constant absolute risk aversion (CARA) is a function of his or her FJ wager and his or her subjective probability of answering FJ correctly. Subjective probabilities are imputed to each player via a logistic regression that regresses ``Answering FJ Correctly'' on five in-game variables. Unadjusted CARA coefficients do not take into account overconfidence: they assume subjective probabilities are equal to the probabilities generated by the logistic model. Game data are scraped from the J!Archive, accessible at www.j-archive.com. Gender is assigned using Social Security Administration data between 1930 and 2012.}",
+          column.sep.width = "20pt",
+          # column.sep.width = "1pt",
+          # rownames = FALSE,
+          # digits = 2
+          # notes.align = "l",
+          header=FALSE
+          )
+```
+
+```{r results = 'asis',warning=FALSE}
+cont_coef_tbl_adjusted <- read_rds("cont_coef_tbl_adjusted")
+cont_coef_tbl_adjusted <- cont_coef_tbl_adjusted %>%
+  mutate_if(is.numeric, myscipen)
+stargazer(cont_coef_tbl_adjusted,
+          summary = FALSE,
+          rownames = FALSE,
+          type = "latex",
+          title = "Adjusted CARA Coefficient Summary Statistics by Gender",
+          notes = "\\parbox[t]{14cm}{\\textit{Notes: }This table shows summary statistics for adjusted coefficients of absolute risk aversion expressed by lock game leaders on the game show \\textit{Jeopardy!}. Lock games are situations in which the leader going into Final Jeopardy (FJ) has more than double the score of the trailer. Under an exponential utility specification, a lock game leader's coefficient of constant absolute risk aversion (CARA) is a function of his or her FJ wager and his or her subjective probability of answering FJ correctly. Subjective probabilities are imputed to each player via a logistic regression that regresses ``Answering FJ Correctly'' on five in-game variables. Adjusted CARA coefficients account for overconfidence by running non-linear least squares estimation of confidence bias across gender and adding those estimates to the probabilities generated by the logistic model. Game data are scraped from the J!Archive, accessible at www.j-archive.com. Gender is assigned using Social Security Administration data between 1930 and 2012.}",
+          column.sep.width = "20pt",
+          # rownames = FALSE,
+          # digits = 2
+          # notes.align = "l",
+          header=FALSE
+          )
+```
+
+To assess if the differences observed in Tables 10 and 11 are significant across gender, I run two linear regressions. The results are shown in in Table 12. In Regression (1), being male is associated with a slightly lower unadjusted CARA coefficient, indicating more risk-seeking behavior. When taking into account overconfidence, the gap between the average male and female CARA coefficient grows. However, for both unadjusted and adjusted analyses, the difference between men and women is not significant. Moreover, extremely low $R^2$ and Adjusted $R^2$ values suggest gender does not do much to explain the variation in CARA coefficients across individuals.
+
+This methodology is not perfect. For one, overconfidence and under-confidence is not allowed to vary by individual. The only confidence variation permitted by the model is variation across gender lines. There are simply not enough within-individual observations to fit some level of overconfidence to every lock game leader. Still, the separation of confidence bias and true probability is a meaningful first step toward a better understanding of the relationship between wagers and risk preference on _Jeopardy!_.
+
+```{r results = 'asis',include=FALSE}
+ttest_first_table <- read_rds("ttest_first_table")
+
+ttest_first_table <- ttest_first_table %>% 
+  mutate_if(is.numeric, round, digits = 7)
+stargazer(ttest_first_table,
+          summary = FALSE,
+          rownames = FALSE,
+          type = "latex",
+          title = "CARA Difference of Means T-Test for Lock Game Leaders",
+          notes = "\\parbox[t]{14cm}{This table displays the results of a two-sample t-test that compares the Coefficient of Absolute Risk Aversion (CARA) of men and women in lock game situations on Jeopardy!. Lock games are situations when the leader going into Final Jeopardy has more than double the score of the trailer. The CARA parameter is estimated by building off an exponential utility model explained in Section 3(c) of this paper. Game data is scraped from the J!Archive, accessible at www.j-archive.com. Gender information is assigned using Social Security Administration data between 1930 and 2012. More details can be found in the Appendix.}",
+          # column.sep.width = "1pt",
+          # rownames = FALSE,
+          digits = 2,
+          # notes.align = "l",
+          header=FALSE
+          )
+```
+
+```{r, include=FALSE}
+alpha_reg_1 <- read_rds("alpha_reg_1")
+alpha_reg_2 <- read_rds("alpha_reg_2")
+
+alpha_robust_reg_1 <- read_rds("alpha_robust_reg_1")
+alpha_robust_reg_2 <- read_rds("alpha_robust_reg_2")
+alpha_robust_reg_3 <- read_rds("alpha_robust_reg_3")
+alpha_robust_reg_4 <- read_rds("alpha_robust_reg_4")
+alpha_robust_reg_5 <- read_rds("alpha_robust_reg_5")
+
+star_alpha<-stargazer(alpha_reg_1,
+                      alpha_reg_2,
+          type = "latex",
+          title = "Linear Regression of CARA Coefficients on Gender in \\textit{Jeopardy!}",
+          covariate.labels = c("Male"),
+          dep.var.labels=c("Unadjusted CARA Coefficient","Adjusted CARA Coefficient"),
+          dep.var.labels.include = TRUE,
+          notes.append = FALSE,
+          notes = "This will be replaced",
+          # digits = 7,
+          column.sep.width = "1pt",
+          notes.align = "l",
+          omit.stat = c("f","ser"),
+          header=FALSE)
+
+note.latex_alpha <- "\\multicolumn{3}{l}{\\parbox[t]{14cm}{\\textit{Notes:} This table shows the relationship between a lock game leader's gender and level of risk tolerance expressed on the game show \\textit{Jeopardy!}. Lock games are situations in which the leader going into Final Jeopardy (FJ) has more than double the score of the trailer. Under an exponential utility specification, a lock game leader's coefficient of constant absolute risk aversion (CARA) is a function of their wager and their subjective probability of answering FJ correctly. Subjective probabilities are imputed to each player via a logistic regression that regresses ``Answering FJ correctly'' on five in-game variables. ``Adjusted CARA Coefficient'' accounts for overconfidence by running non-linear least squares estimation of confidence bias across gender and adding those estimates to the probabilities generated by the logistic model. ``Unadjusted CARA Coefficient'' does not account for overconfidence. ``Male'' is a dummy variable indicating if a player is male or not. There is not enough evidence to suggest that the average male coefficient of absolute risk aversion is significantly different from the average female coefficient. Game data are scraped from the J!Archive, accessible at www.j-archive.com. Gender information is assigned by pulling name frequencies from Social Security Administration data between 1930 and 2012. Standard errors are in parentheses. * \\textit{p}<0.1; ** \\textit{p}<0.05; *** \\textit{p}<0.01.}} \\\\"
+star_alpha[grepl("Note",star_alpha)] <- note.latex_alpha
+```
+
+```{r results = 'asis', include=TRUE}
+cat (star_alpha, sep = "\n")
+```
+
+Figure 1 presents a visual comparison of unadjusted CARA coefficient densities by gender. Since these coefficients are unadjusted, they assume a player's subjective probability is equal to the probability generated by the logistic model. For both men and women, the distribution has a normal shape with a slight left skew. Negative outliers push the average unadjusted CARA coefficient below zero for both groups, as indicated by Table 10. There is also slightly more bunching around the mean for men than for women. Overall, however, both genders exhibit similarly shaped unadjusted CARA coefficient distributions when not accounting for overconfidence.
+
+Figure 2 plots density against adjusted CARA coefficients that account for overconfidence. As evidenced by the figures in Table 11, the means for both men and women are pushed above zero. The density plots for men and women have slightly more of a left skew than before, and both maximum and minimum values have increased, indicating a rightward shift of the distribution. This makes sense, given that overconfidence leads to higher subjective probabilities and, as a result, higher CARA coefficients. The female distribution remains slightly wider than the male distribution.
+
+\newpage
+```{r figure 1, echo = FALSE, warning=FALSE,include=TRUE}
+windowsFonts("LM Roman 10" = windowsFont("LM Roman 10"))
+aversion_plot_2 <- read_rds("aversion_plot_2")
+aversion_plot_2
+```
+
+```{r figure 2, echo = FALSE, warning=FALSE,include=TRUE}
+windowsFonts("LM Roman 10" = windowsFont("LM Roman 10"))
+aversion_plot_3 <- read_rds("aversion_plot_3")
+aversion_plot_3
+```
+\newpage
+
+
+## Robustness Check
+
+Perhaps there is some error in each $p_{1,j}$ predicted by the logistic regression under the updated model. Under a different specification, one might see a difference in risk preferences emerge. Recall that the model regresses the dummy variable "Answering Final Jeopardy Correctly" on five in-game variables across all games in the show's history to predict a $p_{1,j}$ for each player. This section checks for the robustness of this method by seeing how the results change if the logistic regression included only four or fewer in-game variables.
+
+In Table 12, two linear regressions allowed us to compare the difference in means of adjusted and unadjusted CARA coefficients across gender. I now repeat the analysis entirely but under five different probability model specifications that impute a $p_1$ for each player. The first model regresses "Answering Final Jeopardy Correctly" on "Number of Questions Answered Correctly During the Game" and uses the results to predict a probability of answering FJ correctly for each player. The second adds "Number of Questions Answered Incorrectly" to the regression; the third adds "Coryat Score"; the fourth adds "Score After Double Jeopardy Round"; and the fifth adds "Place After Double Jeopardy Round." The fifth specification is the one originally utilized in Section 4.4 of this paper.
+
+```{r results = 'asis',warning=FALSE}
+ttest_probust_table <- read_rds("ttest_probust_table")
+ttest_probust_table <- ttest_probust_table %>%
+  mutate_if(is.numeric, myscipen)
+stargazer(ttest_probust_table,
+          summary = FALSE,
+          rownames = FALSE,
+          type = "latex",
+          title = "Probability Model Robustness Check",
+          notes = "\\parbox[t]{14cm}{\\textit{Notes: } This table shows how the difference in risk tolerance estimates between male and female lock game leaders on \\textit{Jeopardy!} changes under different probability models. Lock games are situations in which the leader going into Final Jeopardy (FJ) has more than double the score of the trailer. Under an exponential utility specification, a lock game leader's coefficient of constant absolute risk aversion (CARA) is a function of his or her wager and his or her subjective probability of answering FJ correctly. Subjective probabilities are imputed to each player via five different logistic regressions in this robustness check. The ``Diff. in Means'' is the difference between the average adjusted CARA coefficient for men and women. Adjusted CARA coefficients account for overconfidence by running non-linear least squares estimation of confidence bias across gender and adding those estimates to the probabilities generated by the logistic models. Game data are scraped from the J!Archive, accessible at www.j-archive.com. Gender information is assigned using Social Security Administration data between 1930 and 2012.}",
+          column.sep.width = "20pt",
+          # rownames = FALSE,
+          digits = 2,
+          # notes.align = "l",
+          header=FALSE
+          )
+```
+
+Table 13 presents the results of the robustness check. The mean CARA coefficient differences for this table are all adjusted for overconfidence. It is worth noting that each "Diff. in Means" value is equivalent to the coefficient on a male dummy variable in Regression (2) of Table 12. For example, the coefficient on "Male" in Regression (2) of Table 12 is equivalent to the difference presented in Model (5) of Table 13. Under all five probability model specifications in Table 13, not a single difference in means t-test is statistically significant; all p-values are greater than ten percent. Therefore, there is not enough evidence to conclude that men are more or less risk-seeking than women.
+
+Still, there are many ways one could predict the true probability of answering FJ correctly. One could go deeper into the details of the game. For example, the number of difficult questions a player answered correctly could be weighted more than the number of easy questions a player answered correctly. It is therefore likely that none of these models captures the true probability of answering FJ correctly, but the persistence of no difference in risk tolerance across all models does suggest that men and women exhibit similar risk tendencies.
+
+# Conclusion
+
+This paper builds off a model introduced by Andrew Metrick (1995) to compare risk preferences between men and women on the high-stakes game show _Jeopardy!_. In an exact replication of Metrick's analysis on a much larger dataset, no significant difference is found between CARA coefficient estimates for men and women. This result holds even after adjusting for three limitations of Metrick's methodology.
+
+The initial analysis of this paper regresses Final Jeopardy wagers as a fraction of maximum possible bet on gender. After controlling for ability, I find men to be slightly more risk-seeking under this specification, and the result is statistically significant. Then, I complicate the model by introducing Metrick's exponential utility logistic regression to estimate a CARA coefficient for men and women. The difference between these two estimates is non-significant. However, Metrick's model has three main flaws: (i) it does not allow CARA coefficient estimation for players who wager zero or the maximum possible bet, (ii) it forces the intercept term of a logistic regression to be zero, and (iii) it does not account for overconfidence that might be exhibited by the players.
+
+To address these concerns, I build a logistic probability model to impute a probability of answering Final Jeopardy correctly for every player on the show. This allows for a direct CARA coefficient calculation for every lock game leader. Then, I use non-linear least squares estimation to fit an overconfidence error for both genders and calculate adjusted CARA coefficients. No significant gender difference is found, and that finding is robust across five different probability model specifications. The updated methodology is not perfect. It fails to allow confidence errors to vary by individual, leaving room for further research into the relationship between risk preference and overconfidence on the show.
+
+There are multiple avenues for further research on this topic. One might doubt that the exponential utility model presented is an accurate reflection of human decision making, especially because the optimal wager generated by it is not dependent on lifetime wealth. A more flexible utility model could be applied to _Jeopardy!_, but one would have to either estimate lifetime wealth or fit some value to the data. A paper by @dealornodeal does this kind of analysis on the game show _Deal or No Deal_.
+
+Another topic for further research is exploration into the ability gap observed on the show. Why is it that men tend to perform better than women? The dataset used for this paper could be useful to researchers exploring that topic and other cross-gender comparisons. New episodes of _Jeopardy!_ air every single day, and as the J!Archive grows larger, there is more potential for large scale investigation into numerous economic questions.
+\newpage
+
+# Appendix {-}
+
+## Description of Scraped Dataset {-}
+
+I scrape data for this paper off of the J!Archive, an online repository of every game in the show's history. The J!Archive is accessible at www.j-archive.com.
+
+I first directly scrape nine variables for every Jeopardy game in the show's history: `r format(nrow(raw),big.mark=",")` games as of August 10, 2019. `r nrow(raw)-nrow(raw_nona)` observations are dropped from every analysis in this paper for having NA values in every game variable, and another `r format(nrow(raw_nona)-nrow(raw_nona_notour),big.mark=",")` observations are dropped for being from tournament play or some other type of non-regular season game. This leaves us with `r nrow(master_raw)` games to analyze. The nine scraped variables for each game are defined below. The dataset is available upon request. 
+
+1. **Show Number**
+      + Every Jeopardy game on the J!Archive has a unique show number.
+2. **Date**
+      + The date the game was aired.
+3. **Game Information**
+      + This variable has basic information on the episode, such as if it was a tournament game or if it had a famous player like Ken Jennings (who won 74 regular season games in a row).
+4. **Player Description**
+      + This variable has each player's full name and a brief description that mentions occupation and area of residency. For returning champions, this variable contains that player's streak and how much money they have collected thus far.
+5. **Coryat Score**
+      + A player's Coryat Score is a player's score if all wagering is disregarded. In the Coryat Score, there is no penalty for forced incorrect responses on Daily Doubles, but correct responses on Daily Doubles earn only the natural values of the clues, and any gain or loss from the Final Jeopardy Round is ignored.
+6. **Score After Double Jeopardy Round**
+      + This is a player's score after the Double Jeopardy Round but before the Final Jeopardy Round.
+7. **Final Score**
+      + This is a player's score after the game has concluded.
+8. **Number of Questions Answered Correctly**
+      + This is the number of questions each player answered correctly during the game.
+9. **Number of Questions Answered Incorrectly**
+      + This is the number of questions each player answered incorrectly during the game. This includes triple stumpers, which occur when a question goes unanswered.
+
+The dataset is manipulated using R to create new variables and run the analyses of this paper [@R]. Graphs and tables of this paper are provided by the ggplot and stargazer packages [@ggplot;@stargazer]. All coding work is available upon request.
+\newpage
+
+## Predicting Probabilities in the Updated Metrick Model {-}
+
+To impute a probability $p_{1,j}$ for every lock game leader in the show's history, I run a logistic regression with "Answering Final Jeopardy Correctly" as the dependent variable and 15 game statistics as the independent variables. Then, I use the results of that regression to directly predict a player's chance of answering Final Jeopardy correctly.
+
+The 15 independent variables can be divided into five groups of variables for all three players in the game. A list of the variables and their descriptions can be found below.
+
+1. **Number of Questions Answered Correctly**
+      + This is the number of questions each player got right during the game.
+2. **Number of Questions Answered Incorrectly**
+      + This is the sum of the number of questions each player answered incorrectly during the game and the number of triple stumpers in the game.
+3. **Coryat Score**
+      + According to the J!Archive, a player's Coryat Score is a player's score if all wagering is disregarded. In the Coryat score, there is no penalty for forced incorrect responses on Daily Doubles, but correct responses on Daily Doubles earn only the natural values of the clues, and any gain or loss from the Final Jeopardy Round is ignored.
+4. **Score After Double Jeopardy Round**
+      + This is a player's score after the Double Jeopardy Round (or before the Final Jeopardy Round).
+5. **Place After Double Jeopardy Round**
+      + This is a player's place after the Double Jeopardy Round (or before the Final Jeopardy Round).
+      
+Model (1) in the robustness check corresponds to a logistic model with only the first variable in the above list for each player. Model (2) adds the second variable, and so on. Model (5) includes all five variables; I use this model for the main analysis in Section 4.4 of this paper. The results of Model (5) are displayed in Table 14.
+
+\newpage
+
+# Sources
+
