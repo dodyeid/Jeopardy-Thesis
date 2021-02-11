@@ -11,4 +11,4 @@ Next, I manipulate the scraped data to be amenable for different types of data a
 Finally, I run the analyses. This starts with a simple regression of wager on gender. Then, I add controls. Finally, I introduce more complicated utility models and estimate risk-parameters for each gender.
 
 ## Final Thesis
-The results are compiled in an MD file that is knitted to a PDF.
+The results are compiled in an RMD file that is knitted to a PDF.
