@@ -1,0 +1,763 @@
+---
+title: "Analyses"
+author: "Dody Eid"
+date: "12/23/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+setwd("C:\\Users\\dodye\\Desktop\\Senior Thesis R\\senior_thesis")
+knitr::opts_chunk$set(echo = TRUE, dev="CairoPDF")
+# install.packages("genderdata", repos = "http://packages.ropensci.org", type = "source")
+# install.packages("extrafont")
+# install.packages("minpack.lm")
+library(extrafont)
+library(minpack.lm)
+# font_import()
+loadfonts(device="win", quiet = TRUE)       #Register fonts for Windows bitmap output
+# fonts()   
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(psych)
+library(stargazer)
+library(psych)
+library(gtable)
+library(gtsummary)
+library(gender)
+library(minpack.lm)
+library(nlstools)
+library(broom)
+# font_import()
+# library(kable)
+# Info on gender package found at: https://ropensci.org/tutorials/gender_tutorial/
+master_raw <- read_rds("master_raw") %>% 
+  filter((is.na(game_info)) | 
+           (!(str_detect(game_info, "ournament")) & 
+           !(str_detect(game_info, "Kids")) &
+           !(str_detect(game_info, "kids")) &
+           !(str_detect(game_info, "College")) &
+           !(str_detect(game_info, "college")) &
+            !(str_detect(game_info, "elebrity")) &
+             !(str_detect(game_info, "All-Star")) &
+             !(str_detect(game_info, "Super Jeopardy"))))
+saveRDS(master_raw,"master_raw")
+
+master_raw_gendered <- read_rds("master_raw_gendered")%>% 
+  filter((is.na(game_info)) | 
+           (!(str_detect(game_info, "ournament")) & 
+           !(str_detect(game_info, "Kids")) &
+           !(str_detect(game_info, "kids")) &
+           !(str_detect(game_info, "College")) &
+           !(str_detect(game_info, "college")) &
+            !(str_detect(game_info, "elebrity")) &
+             !(str_detect(game_info, "All-Star")) &
+             !(str_detect(game_info, "Super Jeopardy"))))
+saveRDS(master_raw_gendered,"master_raw_gendered")
+longraw <- read_rds("longraw")%>% 
+  filter((is.na(game_info)) | 
+           (!(str_detect(game_info, "ournament")) & 
+           !(str_detect(game_info, "Kids")) &
+           !(str_detect(game_info, "kids")) &
+           !(str_detect(game_info, "College")) &
+           !(str_detect(game_info, "college")) &
+            !(str_detect(game_info, "elebrity")) &
+             !(str_detect(game_info, "All-Star")) &
+             !(str_detect(game_info, "Super Jeopardy"))))
+saveRDS(longraw,"longraw")
+```
+
+
+```{r lockgames datasets}
+
+## Let's look at all lock games.
+lock_games_long_all <- longraw %>% 
+  filter(lock == 1 & Player_place_dj == 1 & (first_place_dj_score != second_place_dj_score) & (first_place_dj_score != third_place_dj_score)) %>% 
+  mutate(djfirst_place_wager_frac = djfirst_place_wager / (djfirst_place_dj_score - 2*djsecond_place_dj_score), ##judd frac idea
+         Player_wager_frac = djfirst_place_wager_frac,
+         Player_gender = ifelse(Player_pmale >= 0.95,1,
+                                ifelse(Player_pmale <= 0.05,0,NA)),  ##gender as a dummy added
+         Player_name_full_stripped= substr(Full_desc,1,regexpr(",",Full_desc)-1)) %>% 
+  arrange(Player_name_full_stripped)
+
+lock_games_long_all_nozero <- lock_games_long_all %>% filter(Player_wager != 0)
+lock_games_long_all_rational <- lock_games_long_all %>% filter(Player_name == winner_name &
+                                                                 Player_wager_frac <= 1 &
+                                                                 Player_wager != 0)
+saveRDS(lock_games_long_all_nozero,"lock_games_long_all_nozero")
+saveRDS(lock_games_long_all,"lock_games_long_all")
+saveRDS(lock_games_long_all_rational,"lock_games_long_all_rational")
+
+lock_games_wide_all <- master_raw_gendered %>% filter(lock==1)
+
+saveRDS(lock_games_wide_all,"lock_games_wide_all")
+## TO COMPLICATE ANALYSIS : Filter out irrational games. Filter back in lock-tie games pre nov 2014. Or, count how many of these games exist and make a note of it in the thesis.
+
+## Now split by gender.
+longraw_male <- longraw %>% filter(Player_pmale >= 0.95)
+longraw_female <- longraw %>% filter(Player_pmale <= 0.05)
+
+## Split by gender, but only look at lock games.
+lock_games_long_male <- lock_games_long_all_rational %>% filter(Player_pmale >= 0.95)
+lock_games_long_female <- lock_games_long_all_rational %>% filter(Player_pmale <= 0.05)
+saveRDS(lock_games_long_male,"lock_games_long_male")
+saveRDS(lock_games_long_female,"lock_games_long_female")
+
+## lock games where leader is male
+lock_games_wide_male <- master_raw_gendered %>% filter(lock == 1 & djfirst_pmale >= 0.95)
+saveRDS(lock_games_wide_male,"lock_games_wide_male")
+## lock games where leader is female
+lock_games_wide_female <- master_raw_gendered %>% filter(lock == 1 & djfirst_pmale <= 0.05)
+saveRDS(lock_games_wide_female,"lock_games_wide_female")
+```
+
+
+
+
+```{r basic risk regression}
+basic_risk_reg <- lm(Player_wager_frac ~ Player_gender, data = lock_games_long_all_rational,na.action=na.omit)
+summary(basic_risk_reg)
+saveRDS(basic_risk_reg,"basic_risk_reg")
+
+## basic risk regression but introduce ability controls
+
+##Introduce ability controls one at a time.
+basic_risk_reg_1 <- lm(Player_wager_frac ~ Player_gender + Player_correct, data = lock_games_long_all_rational,na.action=na.omit)
+saveRDS(basic_risk_reg_1,"basic_risk_reg_1")
+
+basic_risk_reg_2 <- lm(Player_wager_frac ~ Player_gender + Player_correct + Player_incorrect, data = lock_games_long_all_rational,na.action=na.omit)
+saveRDS(basic_risk_reg_2,"basic_risk_reg_2")
+
+basic_risk_reg_3 <- lm(Player_wager_frac ~ Player_gender + Player_correct + Player_incorrect + Player_coryat, data = lock_games_long_all_rational,na.action=na.omit)
+saveRDS(basic_risk_reg_3,"basic_risk_reg_3")
+
+basic_risk_reg_4 <- lm(Player_wager_frac ~ Player_gender + Player_correct + Player_incorrect + Player_coryat + Player_dj_score, data = lock_games_long_all_rational,na.action=na.omit)
+saveRDS(basic_risk_reg_4,"basic_risk_reg_4")
+
+basic_risk_reg_5 <- lm(Player_wager_frac ~ Player_gender + Player_correct + Player_incorrect + Player_coryat + Player_dj_score + Player_final_score, data = lock_games_long_all_rational,na.action=na.omit)
+saveRDS(basic_risk_reg_5,"basic_risk_reg_5")
+```
+
+
+```{r summarytable datasets}
+## Data set with *important* variables for summary statistics table. Lock games
+lock_games_rational_table <- lock_games_wide_all %>% select(djfirst_place_dj_score,djsecond_place_dj_score,djfirst_place_wager,djfirst_gotit,djsecond_gotit,streak)
+saveRDS(lock_games_rational_table, "table_1")
+
+## TABLE 2 DATASET
+all_games_summary <- longraw %>% select(Player_dj_score,Player_wager,Player_gotit,Player_final_score,Player_coryat,male,streak)
+saveRDS(all_games_summary, "table_2")
+
+## TABLE 3 DATASET
+all_games_male_summary <- longraw %>% filter(male == 1) %>% select(Player_dj_score,Player_wager,Player_gotit,Player_final_score,Player_coryat,streak)
+saveRDS(all_games_male_summary, "table_3")
+
+## TABLE 4 DATASET
+all_games_female_summary <- longraw %>% filter(male == 0) %>% select(Player_dj_score,Player_wager,Player_gotit,Player_final_score,Player_coryat,streak)
+saveRDS(all_games_female_summary, "table_4")
+
+## TABLE 5 DATASET
+lock_games_wide_male_summary <- lock_games_wide_male %>% select(djfirst_place_dj_score,djsecond_place_dj_score,djfirst_place_wager,djfirst_gotit,djsecond_gotit,streak)
+saveRDS(lock_games_wide_male_summary, "table_5")
+
+## TABLE 6 DATASET
+lock_games_wide_female_summary <- lock_games_wide_female %>% select(djfirst_place_dj_score,djsecond_place_dj_score,djfirst_place_wager,djfirst_gotit,djsecond_gotit,streak)
+saveRDS(lock_games_wide_female_summary, "table_6")
+
+## Table 7 and 8 Summary stats still needed
+```
+
+
+Now onto Metrick risk aversion statistics. Below I replicate his methodology.
+
+```{r metrick replication,include=TRUE}
+## Metrick logistic regression forcing no intercept. REMEBER IT IS ESTIMATING 2 TIMES ALPHA
+met_model_noint_all <- glm(Player_gotit ~ 0 + Player_wager_doubled,
+                 data = lock_games_long_all,
+                 family = binomial)
+saveRDS(met_model_noint_all, "met_model_noint_all")
+metnoint_estimate_all <- as.numeric(met_model_noint_all[[1]]/2)
+saveRDS(metnoint_estimate_all, "metnoint_estimate_all")
+## still need to get standard deviation. For now, I use a filler
+metnoint_se_all <- 0.000068
+saveRDS(metnoint_se_all,file="metnoint_se_all")
+## Metrick logistic regression allowing an intercept.
+met_model_all <- glm(Player_gotit ~ Player_wager_doubled,
+                 data = lock_games_long_all_rational,
+                 family = binomial)
+saveRDS(met_model_all,"met_model_all")
+met_estimate_all <- as.numeric(met_model_all[[1]][[2]]/2)
+saveRDS(met_estimate_all,file="met_estimate_all")
+met_se_all <- 0.000068 ## still a filler
+saveRDS(met_se_all,file="met_se_all")
+## my estimation of the intercept for all individuals
+met_freeint_estimate_all <- as.numeric(met_model_all[[1]][[1]])
+saveRDS(met_freeint_estimate_all,file="met_freeint_estimate_all")
+met_freeint_estimate_se_all <- 0.000049 ## still a filler for standard errors
+saveRDS(met_freeint_estimate_se_all, file="met_freeint_estimate_se_all")
+
+## Let's add the values Metrick himself found. See page 245 of his paper.
+met_own_estimate <- 0.000066
+saveRDS(met_own_estimate,file="met_own_estimate")
+met_own_se <- 0.000056
+saveRDS(met_own_se,file="met_own_se")
+met_own_int <- -0.179
+saveRDS(met_own_int,file="met_own_int")
+met_own_int_se <- 0.297
+saveRDS(met_own_int_se,file="met_own_int_se")
+```
+
+Do Metrick but by Gender.
+
+```{r metrick replication gendered,include=TRUE}
+## Now we repeat the above but by gender.
+
+## Metrick logistic regression forcing no intercept. ##
+# Men
+met_model_noint_male <- glm(Player_gotit ~ 0 + Player_wager_doubled,
+                 data = lock_games_long_male,
+                 family = binomial)
+saveRDS(met_model_noint_male, "met_model_noint_male")
+# summary(met_model_noint)
+metnoint_estimate_male <- as.numeric(met_model_noint_male[[1]]/2)
+saveRDS(metnoint_estimate_male,file="metnoint_estimate_male")
+# still need to get standard deviation. For now, I use a filler
+metnoint_se_male <- 0.000078
+saveRDS(metnoint_se_male,file="metnoint_se_male")
+
+# Women
+met_model_noint_female <- glm(Player_gotit ~ 0 + Player_wager_doubled,
+                 data = lock_games_long_female,
+                 family = binomial)
+saveRDS(met_model_noint_female, "met_model_noint_female")
+# summary(met_model_noint)
+metnoint_estimate_female <- as.numeric(met_model_noint_female[[1]]/2)
+saveRDS(metnoint_estimate_female,file="metnoint_estimate_female")
+# still need to get standard deviation. For now, I use a filler
+metnoint_se_female <- 0.000034
+saveRDS(metnoint_se_female,file="metnoint_se_female")
+```
+
+
+```{r metrick  gendered allow int,include=TRUE}
+## Metrick logistic regression allowing an intercept. ##
+#Men
+met_model_male <- glm(Player_gotit ~ Player_wager_doubled,
+                 data = lock_games_long_male,
+                 family = binomial)
+saveRDS(met_model_male, "met_model_male")
+
+met_estimate_male <- as.numeric(met_model_male[[1]][[2]]/2)
+saveRDS(met_estimate_male,file="met_estimate_male")
+met_se_male <- 0.000016 ## still a filler
+saveRDS(met_se_male, file="met_se_male")
+#Women
+met_model_female <- glm(Player_gotit ~ Player_wager_doubled,
+                 data = lock_games_long_female,
+                 family = binomial)
+saveRDS(met_model_female, "met_model_female")
+
+met_estimate_female <- as.numeric(met_model_female[[1]][[2]]/2)
+saveRDS(met_estimate_female, file="met_estimate_female")
+met_se_female <- 0.000023 ## still a filler
+saveRDS(met_se_female, file="met_se_female")
+```
+
+```{r diff in diff gender metrick analysis}
+met_model_diff_in_diff<-glm(Player_gotit ~ Player_wager_doubled + male*Player_wager_doubled,
+    data = lock_games_long_all_rational,
+    family=binomial)
+saveRDS(met_model_diff_in_diff,"met_model_diff_in_diff")
+```
+
+
+```{r cont_aversion plot,include=TRUE}
+# describe(lock_games_6$djfirst_alpha)
+# mean(lock_games_6$djfirst_alpha, na.rm=TRUE)
+## Density plot of aversion coefficients
+windowsFonts("LM Roman 10" = windowsFont("LM Roman 10"))
+aversion_plot_2 <- ggplot() + 
+                 geom_density(data = lock_games_long_male,
+                                aes(x = Player_alpha, color = "Men"),
+                                breaks=seq(-0.0025, 0.0025, by = 0.0001),
+                                # col="dark green",
+                                fill="green",
+                                alpha = .2) +
+                 geom_density(data = lock_games_long_female, 
+                                aes(x=Player_alpha, color = "Women"),
+                                breaks=seq(-0.0025, 0.0025, by = 0.0001), 
+                                # col="blue", 
+                                fill="purple",
+                                alpha = .2) +
+  labs(title = "Figure 1: Unadjusted CARA Coefficient Density Plots by Gender",
+       colour = "Gender",
+       x="Unadjusted CARA Coefficient", 
+       y="Density",
+       caption = str_wrap("Notes: This graph plots the densities of unadjusted CARA coefficients revealed through Final Jeopardy (FJ) wagers by lock game leaders on Jeopardy. Lock games are situations in which the leader going into Final Jeopardy has more than double the score of the trailer. Under an exponential utility specification, a lock game leader's coefficient of constant absolute risk aversion (CARA) is a function of his or her FJ wager and his or her subjective probability of answering FJ correctly. Subjective probabilities are imputed to each player via a logistic regression that regresses \"Answering FJ Correctly\" on five in-game variables. Unadjusted CARA coefficients do not take into account overconfidence: they assume subjective probabilities are equal to the probabilities generated by the logistic model. Game data are scraped from the J!Archive, accessible at www.j-archive.com. Gender information is assigned by pulling name frequencies from Social Security Administration data between 1930 and 2012.")) + 
+  xlim(c(-0.0025,0.0025))  +
+  scale_colour_manual(values=c("darkgreen", "blue"), aesthetics = c("colour","fill")) +
+  theme(legend.position=c(0.9, 0.9)) +
+  theme_bw() + #gets rid of gray background
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + #gets rid of grid
+  theme(panel.border = element_blank()) + #get rid of border
+  theme(axis.line = element_line(colour = "black")) + #add axis line
+  theme(text=element_text(family="LM Roman 10", size=12)) +#font
+  theme(plot.caption=element_text(hjust = 0)) + #left align caption
+  theme(plot.caption = element_text(family="LM Roman 10",face = "plain")) + #plaintext caption
+  theme(axis.title.x = element_text(family="LM Roman 10",face="plain")) + #bold x axis title
+  theme(axis.title.y = element_text(family="LM Roman 10",face="plain")) +  #bold y axis title
+  theme(plot.title = element_text(family="LM Roman 10",face="plain")) + #bold plot title
+  theme(axis.text.y = element_blank()) + #remove y axis labels
+  theme(axis.ticks.y = element_blank()) #remove y axis ticks
+
+
+
+aversion_plot_2
+saveRDS(aversion_plot_2, "aversion_plot_2")
+```
+
+
+```{r cont_coef summary tables}
+# gender_cont_coef_tbl <- lock_games_long_all %>% 
+#   group_by(male) %>%
+#   dplyr::summarize(mean_alpha = mean(Player_alpha), 
+#             sd_alpha = sd(Player_alpha),
+#             min = min(Player_alpha),
+#             max=max(Player_alpha),
+#             count=n())
+# 
+# all_cont_coef_tbl <- lock_games_long_all  %>% group_by() %>%
+#   dplyr::summarize(male = 2,
+#             mean_alpha = mean(Player_alpha), 
+#             sd_alpha = sd(Player_alpha),
+#             min = min(Player_alpha),
+#             max=max(Player_alpha),
+#             count=n())
+# 
+# gender_cont_coef_tbl
+# all_cont_coef_tbl
+# 
+# cont_coef_tbl <- gender_cont_coef_tbl %>% 
+#   rbind(all_cont_coef_tbl) %>% 
+#   filter(!is.na(male)) %>% 
+#   mutate(Group = case_when(male == 0~"Women",
+#                            male == 1~ "Men",
+#                            male == 2~ "All")) %>% 
+#   select(Group, everything()) %>% 
+#   select(-male) %>% 
+#   rename("Mean Alpha" = "mean_alpha",
+#          "Standard Deviation" = "sd_alpha",
+#          "Minimum" = "min",
+#          "Maximum" = "max",
+#          "Count" = "count") %>% 
+#   filter(!(Group == "All"))
+# cont_coef_tbl ## 0 is female, 1 male, 2 is all
+# saveRDS(cont_coef_tbl, "cont_coef_tbl")
+```
+
+```{r group overconfidence fitting}
+
+lock_games_long_all_multiple_locks <- lock_games_long_all %>% ungroup() %>% 
+  mutate(next_name = lead(lock_games_long_all$Player_name_full_stripped,1),
+         last_name = lag(lock_games_long_all$Player_name_full_stripped,1)) %>% 
+  filter((Player_name_full_stripped == next_name) | (Player_name_full_stripped == last_name))
+## the above data set is all players who won multiple lock games
+
+##for below function, see notes in composition notebook
+wager_func <- function(a,e,p) {
+  (log((e+p)/(1-e-p)))/(2*a)
+}
+
+## Fit confidence error for men. Starting value is the alpha estimated for every player.
+male_conf_error<-summary(nlsLM(Player_wager~wager_func(a,e,Player_p),data=lock_games_long_male,start=list(a=met_estimate_all,e=0), lower=c(-1,-1), upper=c(1,1)))$coefficients[2]
+saveRDS(male_conf_error,"male_conf_error")
+male_nls_fit <- tidy(nlsLM(Player_wager~wager_func(a,e,Player_p),data=lock_games_long_male,start=list(a=met_estimate_all,e=0), lower=c(-1,-1), upper=c(1,1))) %>% 
+  mutate(term=ifelse(term=="a",format("Male CARA Coefficient",justify="left"),format("Male Overconfidence",justify="left"))) %>%
+  dplyr::rename(Parameter = term,
+  "Estimate" = "estimate",
+         "St. Error" = "std.error",
+         "Statistic" = "statistic",
+         "P-Value" = "p.value")
+
+saveRDS(male_nls_fit,"male_nls_fit")
+
+##Fit confidence error for women. Starting value is the alpha estimated for every player
+female_conf_error<-summary(nlsLM(Player_wager~wager_func(a,e,Player_p),data=lock_games_long_female,start=list(a=met_estimate_all,e=0), lower=c(-1,-1), upper=c(1,1)))$coefficients[2]
+saveRDS(female_conf_error,"female_conf_error")
+female_nls_fit <- tidy(nlsLM(Player_wager~wager_func(a,e,Player_p),data=lock_games_long_female,start=list(a=met_estimate_all,e=0), lower=c(-1,-1), upper=c(1,1))) %>% 
+  mutate(term=ifelse(term=="a",format("Female CARA Coefficient",justify="left"),format("Female Overconfidence",justify="left"))) %>% 
+  dplyr::rename("Parameter" = "term",
+         "Estimate" = "estimate",
+         "St. Error" = "std.error",
+         "Statistic" = "statistic",
+         "P-Value" = "p.value")
+nls_fit <- rbind(male_nls_fit,female_nls_fit)
+saveRDS(female_nls_fit,"female_nls_fit")
+saveRDS(nls_fit,"nls_fit")
+
+
+```
+
+```{r overconfidence summary tables}
+lock_games_long_all_rational <- lock_games_long_all_rational %>% 
+  mutate(Player_p_adjusted = ifelse(Player_gender == 1,Player_p + male_conf_error,
+                                    ifelse(Player_gender == 0, Player_p + female_conf_error,NA)),
+         Player_alpha_adjusted = ifelse(Player_wager != 0, (log(Player_p_adjusted/(1-Player_p_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p1_adjusted = ifelse(Player_gender == 1,Player_p1 + male_conf_error,
+                                    ifelse(Player_gender == 0, Player_p1 + female_conf_error,NA)),
+         Player_alpha1_adjusted = ifelse(Player_wager != 0, (log(Player_p1_adjusted/(1-Player_p1_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p2_adjusted = ifelse(Player_gender == 1,Player_p2 + male_conf_error,
+                                    ifelse(Player_gender == 0, Player_p2 + female_conf_error,NA)),
+         Player_alpha2_adjusted = ifelse(Player_wager != 0, (log(Player_p2_adjusted/(1-Player_p2_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p3_adjusted = ifelse(Player_gender == 1,Player_p3 + male_conf_error,
+                                    ifelse(Player_gender == 0, Player_p3 + female_conf_error,NA)),
+         Player_alpha3_adjusted = ifelse(Player_wager != 0, (log(Player_p3_adjusted/(1-Player_p3_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p4_adjusted = ifelse(Player_gender == 1,Player_p4 + male_conf_error,
+                                    ifelse(Player_gender == 0, Player_p4 + female_conf_error,NA)),
+         Player_alpha4_adjusted = ifelse(Player_wager != 0, (log(Player_p4_adjusted/(1-Player_p4_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p5_adjusted = ifelse(Player_gender == 1,Player_p5 + male_conf_error,
+                                    ifelse(Player_gender == 0, Player_p5 + female_conf_error,NA)),
+         Player_alpha5_adjusted = ifelse(Player_wager != 0, (log(Player_p5_adjusted/(1-Player_p5_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all))
+
+##include Adjusted CARA for men. Do this for different p's specified in building datasets 2
+lock_games_long_male_adjusted <- lock_games_long_male %>% 
+  mutate(Player_p_adjusted = Player_p + male_conf_error,
+         Player_alpha_adjusted = ifelse(Player_wager != 0, (log(Player_p_adjusted/(1-Player_p_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p1_adjusted = Player_p1 + male_conf_error,
+         Player_alpha1_adjusted = ifelse(Player_wager != 0, (log(Player_p1_adjusted/(1-Player_p1_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p2_adjusted = Player_p2 + male_conf_error,
+         Player_alpha2_adjusted = ifelse(Player_wager != 0, (log(Player_p2_adjusted/(1-Player_p2_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p3_adjusted = Player_p3 + male_conf_error,
+         Player_alpha3_adjusted = ifelse(Player_wager != 0, (log(Player_p3_adjusted/(1-Player_p3_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p4_adjusted = Player_p4 + male_conf_error,
+         Player_alpha4_adjusted = ifelse(Player_wager != 0, (log(Player_p4_adjusted/(1-Player_p4_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all))
+
+
+##include Adjusted CARA for women
+lock_games_long_female_adjusted <- lock_games_long_female %>% 
+  mutate(Player_p_adjusted = Player_p + female_conf_error,
+         Player_alpha_adjusted = ifelse(Player_wager != 0, (log(Player_p_adjusted/(1-Player_p_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p1_adjusted = Player_p1 + female_conf_error,
+         Player_alpha1_adjusted = ifelse(Player_wager != 0, (log(Player_p1_adjusted/(1-Player_p1_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p2_adjusted = Player_p2 + female_conf_error,
+         Player_alpha2_adjusted = ifelse(Player_wager != 0, (log(Player_p2_adjusted/(1-Player_p2_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p3_adjusted = Player_p3 + female_conf_error,
+         Player_alpha3_adjusted = ifelse(Player_wager != 0, (log(Player_p3_adjusted/(1-Player_p3_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all),
+         
+         Player_p4_adjusted = Player_p4 + female_conf_error,
+         Player_alpha4_adjusted = ifelse(Player_wager != 0, (log(Player_p4_adjusted/(1-Player_p4_adjusted)))/(2*Player_wager),
+                               metnoint_estimate_all))
+
+##Adjusted CARA summary stats tbl
+gender_cont_coef_tbl_adjusted_male <- lock_games_long_male_adjusted %>% 
+  group_by(male) %>%
+  dplyr::summarize(mean_alpha = mean(Player_alpha_adjusted), 
+            sd_alpha = sd(Player_alpha_adjusted),
+            min = min(Player_alpha_adjusted),
+            med = median(Player_alpha_adjusted),
+            max=max(Player_alpha_adjusted),
+            count=n())
+gender_cont_coef_tbl_adjusted_male
+
+gender_cont_coef_tbl_adjusted_female <- lock_games_long_female_adjusted %>% 
+  group_by(male) %>%
+  dplyr::summarize(mean_alpha = mean(Player_alpha_adjusted), 
+            sd_alpha = sd(Player_alpha_adjusted),
+            min = min(Player_alpha_adjusted),
+            med = median(Player_alpha_adjusted),
+            max=max(Player_alpha_adjusted),
+            count=n())
+gender_cont_coef_tbl_adjusted_female
+
+cont_coef_tbl_adjusted <- rbind(gender_cont_coef_tbl_adjusted_male,
+                                gender_cont_coef_tbl_adjusted_female) %>% 
+  filter(!is.na(male)) %>% 
+  mutate(Group = case_when(male == 0~"Women",
+                           male == 1~ "Men",
+                           male == 2~ "All")) %>% 
+  select(Group, everything()) %>% 
+  select(-male) %>% 
+  dplyr::rename("Mean" = "mean_alpha",
+         "St. Dev." = "sd_alpha",
+         "Min" = "min",
+         "Median" = "med",
+         "Max" = "max",
+         "N" = "count") %>% 
+  filter(!(Group == "All"))
+  
+cont_coef_tbl_adjusted
+saveRDS(cont_coef_tbl_adjusted,"cont_coef_tbl_adjusted")
+```
+
+```{r unadjusted summary tbl}
+gender_cont_coef_tbl_male <- lock_games_long_male_adjusted %>% 
+  group_by(male) %>%
+  dplyr::summarize(mean_alpha = mean(Player_alpha), 
+            sd_alpha = sd(Player_alpha),
+            min = min(Player_alpha),
+            med = median(Player_alpha),
+            max=max(Player_alpha),
+            count=n())
+
+gender_cont_coef_tbl_female <- lock_games_long_female_adjusted %>% 
+  group_by(male) %>%
+  dplyr::summarize(mean_alpha = mean(Player_alpha), 
+            sd_alpha = sd(Player_alpha),
+            min = min(Player_alpha),
+            med = median(Player_alpha),
+            max=max(Player_alpha),
+            count=n())
+
+cont_coef_tbl <- rbind(gender_cont_coef_tbl_male,
+                                gender_cont_coef_tbl_female) %>% 
+  filter(!is.na(male)) %>% 
+  mutate(Group = case_when(male == 0~"Women",
+                           male == 1~ "Men",
+                           male == 2~ "All")) %>% 
+  select(Group, everything()) %>% 
+  select(-male) %>% 
+  dplyr::rename("Mean" = "mean_alpha",
+         "St. Dev." = "sd_alpha",
+         "Min" = "min",
+         "Median" = "med",
+         "Max" = "max",
+         "N" = "count") %>% 
+  filter(!(Group == "All"))
+  
+saveRDS(cont_coef_tbl,"cont_coef_tbl")
+```
+
+
+
+```{r ttests}
+
+# Manually create two sample t test function
+t.test2 <- function(m1,m2,s1,s2,n1,n2,m0=0,equal.variance=FALSE)
+{
+    if( equal.variance==FALSE ) 
+    {
+        se <- sqrt( (s1^2/n1) + (s2^2/n2) )
+        # welch-satterthwaite df
+        df <- ( (s1^2/n1 + s2^2/n2)^2 )/( (s1^2/n1)^2/(n1-1) + (s2^2/n2)^2/(n2-1) )
+    } else
+    {
+        # pooled standard deviation, scaled by the sample sizes
+        se <- sqrt( (1/n1 + 1/n2) * ((n1-1)*s1^2 + (n2-1)*s2^2)/(n1+n2-2) ) 
+        df <- n1+n2-2
+    }      
+    t <- (m1-m2-m0)/se 
+    dat <- c(m1-m2, se, t, 2*pt(-abs(t),df))    
+    names(dat) <- c("Difference of means", "Std Error", "t", "p-value")
+    return(dat) 
+}
+
+#Difference of Means T-Test unadjusted CARA
+ttest_first <- t.test2(mean(lock_games_long_male$Player_alpha),
+                             mean(lock_games_long_female$Player_alpha),
+                             sd(lock_games_long_male$Player_alpha),
+                             sd(lock_games_long_female$Player_alpha),
+                             nrow(lock_games_long_male),
+                             nrow(lock_games_long_female))
+ttest_first_table <- bind_rows(ttest_first) %>% 
+  dplyr::rename("Men - Women" = "Difference of means",
+         "St. Error" = "Std Error",
+         "t-score" = "t",
+         "p-value" = "p-value") %>% 
+  mutate(Parameter = "CARA") %>% 
+  select(Parameter, everything())
+saveRDS(ttest_first_table,"ttest_first_table")
+
+##Difference of Means t-test adjusted CARA
+ttest_adjusted <- t.test2(mean(lock_games_long_male_adjusted$Player_alpha_adjusted),
+                             mean(lock_games_long_female_adjusted$Player_alpha_adjusted),
+                             sd(lock_games_long_male_adjusted$Player_alpha_adjusted),
+                             sd(lock_games_long_female_adjusted$Player_alpha_adjusted),
+                             nrow(lock_games_long_male_adjusted),
+                             nrow(lock_games_long_female_adjusted))
+ttest_adjusted_table <- bind_rows(ttest_adjusted) %>%
+  dplyr::rename("Men - Women" = "Difference of means",
+         "St. Error" = "Std Error",
+         "t-score" = "t",
+         "p-value" = "p-value") %>% 
+  mutate(Parameter = "Adjusted CARA") %>% 
+  select(Parameter, everything())
+saveRDS(ttest_adjusted_table,"ttest_adjusted_table")
+
+#combine both t-tests to one table
+ttest_combined <- rbind(ttest_first_table,ttest_adjusted_table)
+saveRDS(ttest_combined,"ttest_combined")
+
+```
+
+```{r p robust test}
+##We're going to stack 5 t-tests for adjusted CARAs
+ttest_1 <- t.test2(mean(lock_games_long_male_adjusted$Player_alpha1_adjusted),
+                             mean(lock_games_long_female_adjusted$Player_alpha1_adjusted),
+                             sd(lock_games_long_male_adjusted$Player_alpha1_adjusted),
+                             sd(lock_games_long_female_adjusted$Player_alpha1_adjusted),
+                             nrow(lock_games_long_male_adjusted),
+                             nrow(lock_games_long_female_adjusted))
+ttest_1_table <- bind_rows(ttest_1) %>%
+  dplyr::rename("Men - Women" = "Difference of means",
+         "St. Error" = "Std Error",
+         "t-score" = "t",
+         "p-value" = "p-value") %>% 
+  mutate(Parameter = "Adjusted CARA",
+         Model = "(1)") %>% 
+  select(Model, Parameter, everything())
+
+ttest_2 <- t.test2(mean(lock_games_long_male_adjusted$Player_alpha2_adjusted),
+                             mean(lock_games_long_female_adjusted$Player_alpha2_adjusted),
+                             sd(lock_games_long_male_adjusted$Player_alpha2_adjusted),
+                             sd(lock_games_long_female_adjusted$Player_alpha2_adjusted),
+                             nrow(lock_games_long_male_adjusted),
+                             nrow(lock_games_long_female_adjusted))
+ttest_2_table <- bind_rows(ttest_2) %>%
+  dplyr::rename("Men - Women" = "Difference of means",
+         "St. Error" = "Std Error",
+         "t-score" = "t",
+         "p-value" = "p-value") %>% 
+  mutate(Parameter = "Adjusted CARA",
+         Model = "(2)") %>% 
+  select(Model, Parameter, everything())
+
+ttest_3 <- t.test2(mean(lock_games_long_male_adjusted$Player_alpha3_adjusted),
+                             mean(lock_games_long_female_adjusted$Player_alpha3_adjusted),
+                             sd(lock_games_long_male_adjusted$Player_alpha3_adjusted),
+                             sd(lock_games_long_female_adjusted$Player_alpha3_adjusted),
+                             nrow(lock_games_long_male_adjusted),
+                             nrow(lock_games_long_female_adjusted))
+ttest_3_table <- bind_rows(ttest_3) %>%
+  dplyr::rename("Men - Women" = "Difference of means",
+         "St. Error" = "Std Error",
+         "t-score" = "t",
+         "p-value" = "p-value") %>% 
+  mutate(Parameter = "Adjusted CARA",
+         Model = "(3)") %>% 
+  select(Model, Parameter, everything())
+
+ttest_4 <- t.test2(mean(lock_games_long_male_adjusted$Player_alpha4_adjusted),
+                             mean(lock_games_long_female_adjusted$Player_alpha4_adjusted),
+                             sd(lock_games_long_male_adjusted$Player_alpha4_adjusted),
+                             sd(lock_games_long_female_adjusted$Player_alpha4_adjusted),
+                             nrow(lock_games_long_male_adjusted),
+                             nrow(lock_games_long_female_adjusted))
+ttest_4_table <- bind_rows(ttest_4) %>%
+  dplyr::rename("Men - Women" = "Difference of means",
+         "St. Error" = "Std Error",
+         "t-score" = "t",
+         "p-value" = "p-value") %>% 
+  mutate(Parameter = "Adjusted CARA",
+         Model = "(4)") %>% 
+  select(Model, Parameter, everything())
+
+ttest_5 <- ttest_adjusted
+ttest_5_table <- ttest_adjusted_table %>% 
+  mutate(Model = "(5)") %>% 
+  select(Model, Parameter, everything())
+
+
+#combine 5 t-tests to one table
+ttest_probust_combined <- rbind(ttest_1_table,ttest_2_table,ttest_3_table,ttest_4_table,ttest_5_table)
+
+ttest_probust_table<-ttest_probust_combined %>% 
+  dplyr::rename("Diff. in Means (Men-Women)" = "Men - Women") %>% 
+  select(-Parameter)
+ttest_probust_table
+saveRDS(ttest_probust_table,"ttest_probust_table")
+```
+
+
+```{r alpha regressions}
+alpha_reg_1 <- lm(Player_alpha~Player_gender,data = lock_games_long_all_rational,na.action=na.omit)
+alpha_reg_2 <- lm(Player_alpha_adjusted~Player_gender,data = lock_games_long_all_rational,na.action=na.omit)
+saveRDS(alpha_reg_1,"alpha_reg_1")
+saveRDS(alpha_reg_2,"alpha_reg_2")
+
+alpha_robust_reg_1 <- lm(Player_alpha1_adjusted~Player_gender,data = lock_games_long_all_rational,na.action=na.omit)
+alpha_robust_reg_2 <- lm(Player_alpha2_adjusted~Player_gender,data = lock_games_long_all_rational,na.action=na.omit)
+alpha_robust_reg_3 <- lm(Player_alpha3_adjusted~Player_gender,data = lock_games_long_all_rational,na.action=na.omit)
+alpha_robust_reg_4 <- lm(Player_alpha4_adjusted~Player_gender,data = lock_games_long_all_rational,na.action=na.omit)
+alpha_robust_reg_5 <- lm(Player_alpha5_adjusted~Player_gender,data = lock_games_long_all_rational,na.action=na.omit)
+saveRDS(alpha_robust_reg_1,"alpha_robust_reg_1")
+saveRDS(alpha_robust_reg_2,"alpha_robust_reg_2")
+saveRDS(alpha_robust_reg_3,"alpha_robust_reg_3")
+saveRDS(alpha_robust_reg_4,"alpha_robust_reg_4")
+saveRDS(alpha_robust_reg_5,"alpha_robust_reg_5")
+```
+
+
+```{r cont_aversion plot3,include=TRUE}
+# describe(lock_games_6$djfirst_alpha)
+# mean(lock_games_6$djfirst_alpha, na.rm=TRUE)
+## Density plot of aversion coefficients
+
+windowsFonts("LM Roman 10" = windowsFont("LM Roman 10"))
+aversion_plot_3 <- ggplot() + 
+                 geom_density(data = lock_games_long_male_adjusted,
+                                aes(x = Player_alpha_adjusted, color = "Men"),
+                                breaks=seq(-0.0025, 0.0025, by = 0.0001),
+                                # col="dark green",
+                                fill="green",
+                                alpha = .2) +
+                 geom_density(data = lock_games_long_female_adjusted, 
+                                aes(x=Player_alpha_adjusted, color = "Women"),
+                                breaks=seq(-0.0025, 0.0025, by = 0.0001), 
+                                # col="blue", 
+                                fill="purple",
+                                alpha = .2) +
+  labs(title = "Figure 2: Adjusted CARA Coefficient Density Plots by Gender",
+       colour = "Gender",
+       x="Adjusted CARA Coefficient", 
+       y="Density",
+       caption = str_wrap("Notes: This graph plots the densities of adjusted CARA coefficients revealed through Final Jeopardy (FJ) wagers by lock game leaders on Jeopardy. Lock games are situations in which the leader going into Final Jeopardy has more than double the score of the trailer. Under an exponential utility specification, a lock game leader's coefficient of constant absolute risk aversion (CARA) is a function of his or her FJ wager and his or her subjective probability of answering FJ correctly. Subjective probabilities are imputed to each player via a logistic regression that regresses \"Answering FJ Correctly\" on five in-game variables. Adjusted CARA coefficients account for overconfidence by running non-linear least squares estimation of confidence bias across gender and adding those estimates to the probabilities generated by the logistic model. Game data are scraped from the J!Archive, accessible at www.j-archive.com. Gender information is assigned by pulling name frequencies from Social Security Administration data between 1930 and 2012.")) + 
+  xlim(c(-0.0025,0.0025))  +
+  scale_colour_manual(values=c("darkgreen", "blue"), aesthetics = c("colour","fill")) +
+  theme(legend.position=c(0.9, 0.9)) +
+  theme_bw() + #gets rid of gray background
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + #gets rid of grid
+  theme(panel.border = element_blank()) + #get rid of border
+  theme(axis.line = element_line(colour = "black")) + #add axis line
+  theme(text=element_text(family="LM Roman 10", size=12)) +#font
+  theme(plot.caption=element_text(hjust = 0)) + #left align caption
+  theme(plot.caption = element_text(family="LM Roman 10",face = "plain")) + #plaintext caption
+  theme(axis.title.x = element_text(family="LM Roman 10",face="plain")) + #bold x axis title
+  theme(axis.title.y = element_text(family="LM Roman 10",face="plain")) +  #bold y axis title
+  theme(plot.title = element_text(family="LM Roman 10",face="plain")) + #bold plot title
+  theme(axis.text.y = element_blank()) + #remove y axis labels
+  theme(axis.ticks.y = element_blank()) #remove y axis ticks
+
+
+
+aversion_plot_3
+saveRDS(aversion_plot_3, "aversion_plot_3")
+```

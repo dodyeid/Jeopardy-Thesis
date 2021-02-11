@@ -1,0 +1,72 @@
+---
+title: "Figures for Thesis"
+author: "Dody Eid"
+date: "2/28/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+setwd("C:\\Users\\dodye\\Desktop\\Senior Thesis R\\senior_thesis")
+library(Cairo)
+knitr::opts_chunk$set(echo = FALSE,dev="CairoPDF")
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(psych)
+library(stargazer)
+library(psych)
+library(gtable)
+library(gtsummary)
+library(gender)
+library(bookdown)
+library(texreg)
+library(gtsummary)
+library(extrafont)
+library(minpack.lm)
+# font_import()
+loadfonts(device="win", quiet = TRUE)
+lock_games_long_male <- read_rds("lock_games_long_male")
+lock_games_long_female <- read_rds("lock_games_long_female")
+```
+
+```{r, message = FALSE,warning = FALSE}
+loadfonts(device = "pdf")
+windowsFonts("LM Roman 10" = windowsFont("LM Roman 10"))
+aversion_plot_final <- read_rds("aversion_plot_2")
+aversion_plot_final
+```
+
+```{r}
+ggplot(lock_games_long_all_rational_nogenderna,aes(x=Player_wager_frac,fill=Player_gender)) + 
+  geom_density(alpha = .2) +
+  labs(title = "Figure 2: Wager as a Fraction of Possible Wager by Gender",
+       colour = "Gender",
+       x="Wager as a Fraction of Possible Wager", 
+       y="Density",
+       caption = str_wrap("Note: This is a note.")) + 
+  xlim(c(0,1))  +
+  scale_colour_manual(values=c("green", "blue")) +
+  theme(legend.position=c(0.9, 0.9)) +
+  theme_bw() + #gets rid of gray background
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + #gets rid of grid
+  theme(panel.border = element_blank()) + #get rid of border
+  theme(axis.line = element_line(colour = "black")) + #add axis line
+  theme(text=element_text(family="LM Roman 10", size=12)) +#font
+  theme(plot.caption=element_text(hjust = 0)) + #left align caption
+  theme(plot.caption = element_text(family="LM Roman 10",face = "plain")) + #plaintext caption
+  theme(axis.title.x = element_text(family="LM Roman 10",face="bold")) + #bold x axis title
+  theme(axis.title.y = element_text(family="LM Roman 10",face="bold")) +  #bold y axis title
+  theme(plot.title = element_text(family="LM Roman 10",face="bold")) + #bold plot title
+  theme(axis.text.y = element_blank()) + #remove y axis labels
+  theme(axis.ticks.y = element_blank()) #remove y axis ticks
+```
+
+```{r}
+lock_games_long_all_rational$Player_gender <- as.factor(lock_games_long_all_rational$Player_gender)
+lock_games_long_all_rational_nogenderna <- lock_games_long_all_rational %>% filter(!(is.na(Player_gender)))
+ggplot(lock_games_long_all_rational_nogenderna,aes(x=Player_wager_frac,fill=Player_gender)) +
+  geom_density()
+
+```
+
+

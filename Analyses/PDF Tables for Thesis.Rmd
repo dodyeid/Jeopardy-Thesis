@@ -1,0 +1,200 @@
+---
+title: "Tables and Graphs PDF"
+author: "Dody Eid"
+date: "2/16/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(psych)
+library(stargazer)
+library(psych)
+library(gtable)
+library(gtsummary)
+library(gender)
+library(bookdown)
+# install.packages("genderdata", repos = "http://packages.ropensci.org", type = "source")
+# library(kable)
+# Info on gender package found at: https://ropensci.org/tutorials/gender_tutorial/
+setwd("C:\\Users\\dodye\\Desktop\\Senior Thesis R\\senior_thesis")
+
+#read in 2 main datasets
+master_raw <- read_rds("master_raw")
+longraw <- read_rds("longraw")
+
+table_1 <- read_rds("table_1") ## lock games summary stats
+table_2 <- read_rds("table_2") ## all games summary stats
+table_3 <- read_rds("table_3") ## all male players summary stats
+table_4 <- read_rds("table_4") ## all female players summary stats
+table_5 <- read_rds("table_5") ## lock games where leader is male summary stats
+table_6 <- read_rds("table_6") ## lock games where leader is female summary stats
+
+## Vars load in ##
+#metrick rep
+metnoint_estimate_all <- read_rds('metnoint_estimate_all')
+metnoint_se_all <- read_rds("metnoint_se_all")
+met_estimate_all <- read_rds("met_estimate_all")
+met_se_all <- read_rds("met_se_all")
+met_freeint_estimate_all <- read_rds("met_freeint_estimate_all")
+met_freeint_estimate_se_all <- read_rds("met_freeint_estimate_se_all")
+met_own_estimate <- read_rds("met_own_estimate")
+met_own_se <- read_rds("met_own_se")
+met_own_int <- read_rds("met_own_int")
+met_own_int_se <- read_rds("met_own_int_se")
+metnoint_estimate_male <- read_rds("metnoint_estimate_male")
+metnoint_se_male <- read_rds("metnoint_se_male")
+metnoint_estimate_female <- read_rds("metnoint_estimate_female")
+metnoint_se_female <- read_rds("metnoint_se_female")
+met_estimate_male <- read_rds("met_estimate_male")
+met_se_male <- read_rds("met_se_male")
+met_estimate_female <- read_rds("met_estimate_female")
+met_se_female <- read_rds("met_se_female")
+
+## Logsitic model load in
+met_model_noint_all <- read_rds("met_model_noint_all")
+met_model_all <- read_rds("met_model_all")
+#gendered
+met_model_noint_male <- read_rds("met_model_noint_male")
+met_model_noint_female <- read_rds("met_model_noint_female")
+met_model_male <- read_rds("met_model_male")
+met_model_female <- read_rds("met_model_female")
+
+## Continues alpha table
+cont_coef_tbl <- read_rds("cont_coef_tbl")
+
+## The plot
+aversion_plot <- read_rds("aversion_plot")
+```
+
+TABLES
+
+TABLE 1
+```{r results = 'asis'}
+## TABLE 1
+## Move this whole code chunk to thesis doc. Save the data set used to WD.
+
+stargazer(as.data.frame(subset(table_1[c("djfirst_place_dj_score","djsecond_place_dj_score","djfirst_place_wager","djfirst_gotit","djsecond_gotit","streak")])), 
+          type = "latex", 
+          title = "Summary Statistics for Jeopardy Lock Game Situations", 
+          covariate.labels = c("Leader's Score", "Trailer's Score", "Leader's Wager", "Leader Got It?", "Trailer Got It?", "Streak"), 
+          notes = "\\parbox[t]{14cm}{This table displays summary statistics for lock games on the game show Jeopardy. Lock games  are situations when the leader going into Final Jeopardy has more than double the score of the trailer. These data were scraped from the J!Archive, accessible at www.j-archive.com.}", 
+          column.sep.width = "1pt", 
+          no.space = TRUE,
+          summary.stat = c("mean", "sd","min","max"),
+          header = FALSE)
+
+```
+
+TABLE 2
+```{r results = 'asis'}
+## TABLE 2
+
+stargazer(as.data.frame(subset(table_2[c("Player_dj_score","Player_wager","Player_gotit","Player_final_score","Player_coryat","male")])),
+          type = "latex",
+          title = "Summary Statistics for all Jeopardy Players",
+          covariate.labels = c("Score Going into Final Jeopardy", "Wager", "Correct", "Final Score", "Final Coryat", "Male"),
+          notes = "\\parbox[t]{14cm}{This table displays summary statistics for players on the game show Jeopardy. These data were scraped from the J!Archive, accessible at www.j-archive.com.}",
+          column.sep.width = "1pt",
+          summary.stat = c("mean", "sd","min","max"),
+          header=FALSE
+          )
+```
+
+TABLE 3
+```{r results = 'asis'}
+## TABLE 3
+
+stargazer(as.data.frame(subset(table_3[c("Player_dj_score","Player_wager","Player_gotit","Player_final_score","Player_coryat")])),
+          type = "latex", 
+          title = "Summary Statistics for Male Jeopardy Players", 
+          covariate.labels = c("Score Going into Final Jeopardy", "Wager", "Correct", "Final Score", "Final Coryat"), 
+          notes = "\\parbox[t]{14cm}{This table displays summary statistics for male players in the game show Jeopardy. These data were scraped from the J!Archive, accessible at www.j-archive.com.}", 
+          column.sep.width = "1pt",
+          summary.stat = c("mean", "sd","min","max"),
+          header=FALSE)
+
+```
+
+TABLE 4
+```{r results = 'asis'}
+## TABLE 4
+
+stargazer(as.data.frame(subset(table_4[c("Player_dj_score","Player_wager","Player_gotit","Player_final_score","Player_coryat")])),
+          type = "latex", 
+          title = "Summary Statistics for Female Jeopardy Players", 
+          covariate.labels = c("Score Going into Final Jeopardy", "Wager", "Correct", "Final Score", "Final Coryat"), 
+          notes = "\\parbox[t]{14cm}{This table displays summary statistics for female players on the game show Jeopardy. These data were scraped from the J!Archive, accessible at www.j-archive.com.}", 
+          column.sep.width = "1pt", 
+          summary.stat = c("mean", "sd","min","max"),
+          header=FALSE)
+```
+
+TABLE 5
+```{r results = 'asis'}
+## TABLE 5
+## Move this whole code chunk to thesis doc. Save the data set used to WD.
+
+stargazer(as.data.frame(subset(table_5[c("djfirst_place_dj_score","djsecond_place_dj_score","djfirst_place_wager","djfirst_gotit","djsecond_gotit")])), 
+          type = "latex",
+          title = "Summary Statistics for Jeopardy Lock Game Situations When the Leader is Male", 
+          covariate.labels = c("Leader's Score", "Trailer's Score", "Leader's Wager", "Leader Got It?", "Trailer Got It?"),
+          notes = "\\parbox[t]{14cm}{This table displays summary statistics for lock game situations when the leader is male. These data were scraped from the J!Archive, accessible at www.j-archive.com.}", 
+          column.sep.width = "1pt",
+          summary.stat = c("mean", "sd","min","max"),
+          header=FALSE)
+
+```
+
+TABLE 6
+```{r results = 'asis'}
+## TABLE 6
+## Move this whole code chunk to thesis doc. Save the data set used to WD.
+
+stargazer(as.data.frame(subset(table_6[c("djfirst_place_dj_score","djsecond_place_dj_score","djfirst_place_wager","djfirst_gotit","djsecond_gotit")])), 
+          type = "latex", 
+          title = "Summary Statistics for Jeopardy Lock Game Situations When the Leader is Female", 
+          covariate.labels = c("Leader's Score", "Trailer's Score", "Leader's Wager", "Leader Got It?", "Trailer Got It?"), 
+          notes = "\\parbox[t]{14cm}{This table displays summary statistics for lock game situations when the leader is female. These data were scraped from the J!Archive, accessible at www.j-archive.com.}", 
+          column.sep.width = "1pt",
+          summary.stat = c("mean", "sd","min","max"),
+          header=FALSE)
+
+```
+
+TABLE 7
+```{r results = 'asis'}
+stargazer(met_model_noint_all,met_model_all,
+          met_model_noint_male,met_model_male,
+          met_model_noint_female, met_model_female,
+          type = "latex",
+          title = "Risk Parameter Estimate for Lock Game Leaders",
+          covariate.labels = c("Wager"),
+          dep.var.labels = c("Answer Final Jeopardy Correctly"),
+          notes = "\\parbox[t]{14cm}{This table shows estimates for a coefficient of absolute risk aversion that best explains the decision making of lock game leaders on Jeopardy assuming they follow exponential utility functions (See Metrick (1995) for the first iteration of this analysis). I regress wagers on whether or not a player answered Final Jeopardy correctly to estimate a single risk parameter for the sample. Regression (1) forces the intercept term of the regression to be zero so as to better fit the model's utility specification, while regression (2) allows for a free intercept estimate. The estimate in regression (1) implies a coefficient of absolute risk aversion of 0.0000045638, while this estimate under regression (2) is 0.0000273003.}",
+          digits = 7,
+          column.sep.width = "1pt",
+          notes.align = "l",
+          header=FALSE)
+```
+
+TABLE 8
+```{r results = 'asis'}
+## TABLE 6
+## Move this whole code chunk to thesis doc. Save the data set used to WD.
+cont_coef_df <- as.data.frame(cont_coef_tbl)
+stargazer(cont_coef_df,
+          summary = FALSE,
+          type = "latex",
+          # title = "Summary Statistics for Risk Coefficients in Jeopardy",
+          # notes = "\\parbox[t]{14cm}{This table shows summary statistics for coefficients of absolute risk aversion (alpha) expressed by wagering decisions in Jeopardy lock game situations.}",
+          # column.sep.width = "1pt",
+          # rownames = FALSE,
+          digits = 3
+          # notes.align = "l",
+          # header=FALSE
+          )
+```
